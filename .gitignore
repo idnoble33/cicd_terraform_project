@@ -28,4 +28,4 @@ __pycache__/
 .env/
 venv/
 pip-log.txt
-get-pip.py
+get-pip.pyterraform/terraform.tfvars
