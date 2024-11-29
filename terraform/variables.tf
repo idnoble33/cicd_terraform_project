@@ -16,7 +16,7 @@ variable "node_count" {
 
 variable "vm_size" {
   description = "VM size for the AKS node pool"
-  default     = "Standard_DS2_v2"
+  default     = "Standard_D4s_v3"
 }
 
 variable "service_cidr" {
@@ -72,12 +72,27 @@ variable "client_secret" {
   type        = string
 }
 
-variable "ssh_key_path" {
-  description = "Path to the SSH public key"
-  default     = "/Users/noble/.ssh/id_rsa_new.pub"
-}
+# variable "ssh_public_key_path" {
+#   description = "Path to the SSH public key"
+#   default     = "/Users/noble/.ssh/id_rsa_new.pub"
+# }
 variable "create_rg" {
   description = "Determines whether to create the resource group"
   type        = bool
   default     = false
+}
+
+variable "ssh_public_key_path" {
+  description = "The path to the SSH public key."
+  type        = string
+}
+
+variable "ssh_private_key_path" {
+  description = "The path to the SSH private key."
+  type        = string
+}
+
+variable "network_interface_id" {
+  description = "The ID of the network interface."
+  type        = string
 }

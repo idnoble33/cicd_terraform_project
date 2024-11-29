@@ -14,36 +14,81 @@
 #     storage_account_type = "Standard_LRS"
 #     disk_size_gb         = 30
 #   }
-  resource "azurerm_linux_virtual_machine" "vm" {
+#   resource "azurerm_virtual_machine" "vm" {
+#   count               = 1
+#   name                = "vm-${count.index}"
+#   resource_group_name = var.resource_group_name
+#   location            = var.location
+#   vm_size             = var.vm_size
+
+
+#   # OS Profile
+#   os_profile {
+#     computer_name  = "vm-${count.index}"
+#     admin_username = "azureuser"  # Specify the admin username
+
+#     admin_ssh_key {
+#       username   = "azureuser"  # Must match admin_username
+#       public_key = file(var.ssh_public_key_path)  # Path to your public key file
+#     }
+#   }
+
+#   # Linux Configuration
+#   os_profile_linux_config {
+#     disable_password_authentication = true  # Disable password authentication
+#   }
+
+#   # Storage OS Disk Configuration
+#   storage_os_disk {
+#     name              = "${var.resource_group_name}-osdisk-${count.index}"
+#     caching           = "ReadWrite"
+#     create_option     = "FromImage"
+#     managed_disk_type = "Standard_LRS"
+#   }
+
+#   # Source Image Configuration
+#   storage_image_reference {
+#     publisher = "Canonical"
+#     offer     = "UbuntuServer"
+#     sku       = "22.04-LTS"  # Use a recent LTS version
+#     version   = "latest"
+#   }
+
+#   # Network Interface Configuration
+#   network_interface_ids = [var.network_interface_id]
+# }
+resource "azurerm_linux_virtual_machine" "vm" {
   count                = 1
-  name                 = "jenkins-vm-${count.index}"
+  name                 = "vm-${count.index}"
   resource_group_name  = var.resource_group_name
   location             = var.location
   size                 = var.vm_size
-  admin_username       = "azureuser"
+
+  # OS Profile
+  admin_username       = "azureuser"  # Specify the admin username
+
+  # Linux Configuration
   admin_ssh_key {
-    public_key = file(var.ssh_public_key_path)
+    username   = "azureuser"  # Must match admin_username
+    public_key = file(var.ssh_public_key_path)  # Path to your public key file
   }
-  network_interface_ids = [azurerm_network_interface.nic.id]
+
+ # Storage OS Disk Configuration
   os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
+    name              = "${var.resource_group_name}-osdisk-${count.index}"
+    caching           = "ReadWrite"
+    # disk_size_gb     = 30  # Specify the disk size in GB
+    storage_account_type = "Standard_LRS"  # Required attribute
   }
+
+  # Source Image Configuration
+ source_image_reference {
+  publisher = "Canonical"
+  offer     = "UbuntuServer"
+  sku       = "22.04-LTS"  # or try "20.04-LTS" if necessary
+  version   = "latest"  # You can also specify a specific version if needed
 }
 
-
-  # Provide the SSH key configuration
-  admin_ssh_key {
-    username   = var.admin_username
-    public_key = file(var.ssh_key_path)
-  }
-  # Disable password authentication and use SSH keys
-  disable_password_authentication = true
-
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "18.04-LTS"
-    version   = "latest"
-  }
+  # Network Interface Configuration
+  network_interface_ids = [var.network_interface_id]
 }

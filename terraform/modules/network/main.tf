@@ -1,9 +1,9 @@
-resource "random_string" "suffix" {
-  length  = 8
-  special = false
-  upper   = false
-  numeric = true
-}
+# resource "random_string" "suffix" {
+#   length  = 8
+#   special = false
+#   upper   = false
+#   numeric = true
+# }
 # resource "azurerm_network_security_rule" "ssh" {
 #   name                        = "SSH-Allow"
 #   priority                    = 100         # Ensure this priority is unique
@@ -32,6 +32,14 @@ resource "random_string" "suffix" {
 #   network_security_group_name = "aks-agentpool-35803000-nsg"
 # }
 
+
+# Generate a random suffix for resource names
+resource "random_string" "suffix" {
+  length  = 8
+  special = false
+  upper   = false
+  numeric = true
+}
 
 # Public IP
 resource "azurerm_public_ip" "public_ip" {
@@ -81,7 +89,6 @@ resource "azurerm_network_security_group" "nsg" {
   }
 }
 
-
 # Subnet
 resource "azurerm_subnet" "subnet" {
   name                 = var.subnet_name
@@ -89,12 +96,6 @@ resource "azurerm_subnet" "subnet" {
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = var.subnet_prefixes
 }
-
-# Subnet NSG Association
-# resource "azurerm_subnet_network_security_group_association" "subnet_nsg_association" {
-#   subnet_id                 = azurerm_subnet.subnet.id
-#   network_security_group_id = azurerm_network_security_group.nsg.id
-# }
 
 # Network Interface
 resource "azurerm_network_interface" "nic" {
@@ -109,9 +110,9 @@ resource "azurerm_network_interface" "nic" {
     public_ip_address_id          = azurerm_public_ip.public_ip.id
   }
 }
-# Subnet NSG Association
-resource "azurerm_network_interface_security_group_association" "nic_nsg_association" {
-  network_interface_id          = azurerm_network_interface.nic.id
-  network_security_group_id     = azurerm_network_security_group.nsg.id
-}
 
+# Subnet NSG Association (Optional)
+resource "azurerm_network_interface_security_group_association" "nic_nsg_association" {
+  network_interface_id      = azurerm_network_interface.nic.id
+  network_security_group_id  = azurerm_network_security_group.nsg.id
+}

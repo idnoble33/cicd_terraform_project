@@ -16,6 +16,6 @@ output "keyvault_uri" {
   value = module.keyvault.keyvault_uri
 }
 output "ssh_key_test" {
-  value = file(var.ssh_key_path)
+  value = file(var.ssh_public_key_path)
 }
 

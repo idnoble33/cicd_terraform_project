@@ -15,24 +15,18 @@
 
 - name: Add Jenkins repository key
   apt_key:
-    url: "{{ jenkins_repo }}"
+    url: "https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key"
     state: present
 
 - name: Add Jenkins repository
   apt_repository:
-    repo: "deb http://pkg.jenkins.io/debian-stable binary/"
+    repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
     state: present
 
-- name: Install Jenkins
+- name: Install Java Runtime
   apt:
-    name: jenkins
+    name: openjdk-17-jre
     state: present
-
-- name: Start and enable Jenkins service
-  systemd:
-    name: jenkins
-    enabled: yes
-    state: started
 
 - name: Install Docker
   apt:
@@ -50,7 +44,25 @@
     name: git
     state: present
 
+- name: Install Jenkins
+  apt:
+    name: jenkins
+    state: present
+
+- name: Start and enable Jenkins service
+  systemd:
+    name: jenkins
+    enabled: yes
+    state: started
+
 - name: Verify Jenkins installation
   shell: |
     curl -fsSL http://localhost:8080 || (echo "Jenkins not responding!" && exit 1)
   ignore_errors: yes
+
+- name: Check Jenkins service status
+  systemd:
+    name: jenkins
+    state: started
+  register: jenkins_service
+  failed_when: jenkins_service is not defined or jenkins_service.status != 'active'
