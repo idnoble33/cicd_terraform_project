@@ -36,6 +36,13 @@ variable "public_ip_sku" {
   default     = "Standard"
 }
 
+variable "subnet_id" {
+  description = "The ID of the subnet that will be used for the network interface"
+  type        = string
+  default     = ""
+}
+
+
 variable "nic_name" {
   description = "Name of the Network Interface"
   type        = string

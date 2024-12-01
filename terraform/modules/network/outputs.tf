@@ -13,7 +13,10 @@ output "public_ip_address" {
   value       = azurerm_public_ip.public_ip.ip_address
 }
 
-# output "vm_public_ip" {
-#   description = "The public IP address of the created VM."
-#   value       = var.network_public_ip  # Assuming you pass this from the main module
-# }
+ output "network_interface_id" {
+  value = azurerm_network_interface.nic.id
+}
+
+output "subnet_id" {
+  value = azurerm_subnet.subnet.id
+}

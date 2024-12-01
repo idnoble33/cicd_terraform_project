@@ -15,7 +15,7 @@ output "aks_cluster_name" {
 output "keyvault_uri" {
   value = module.keyvault.keyvault_uri
 }
-output "ssh_key_test" {
+output "ssh_public_key_path" {
   value = file(var.ssh_public_key_path)
 }
 

@@ -55,3 +55,14 @@ variable "network_public_ip" {
   type        = string
   default = "netinterip12345"
 }
+
+variable "os_disk_size" {
+  description = "The size of the OS disk in GB"
+  type        = number
+  default     = 40  # Default disk size
+}
+variable "subnet_id" {
+  description = "The ID of the subnet the NIC will be attached to"
+  type        = string
+  default = "10.0.1.0/24"
+}

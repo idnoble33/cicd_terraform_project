@@ -47,7 +47,6 @@ module "network" {
   nic_name            = "nic-${random_string.suffix.result}"
   location            = var.location
 }
-
 # VM Module
 module "vm" {
   source              = "./modules/vm"
@@ -58,6 +57,9 @@ module "vm" {
   ssh_private_key_path = var.ssh_private_key_path
   network_interface_id = module.network.nic_id  # Ensure this output exists
   network_public_ip   = module.network.public_ip_address  # Pass the public IP here
+  os_disk_size         = var.os_disk_size
+  subnet_id           = module.network.subnet_id
+  
 }
 
 module "acr" {
@@ -80,7 +82,7 @@ module "aks" {
   source              = "./modules/aks"
   cluster_name        = "aks-${random_string.suffix.result}"
   dns_prefix          = "dns-${random_string.suffix.result}"
-  node_count          = 2
+  node_count          = 1
   vm_size             = "Standard_D4s_v3"
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
@@ -92,36 +94,79 @@ module "aks" {
 
 #   # Generate inventory file with the public IP of the VM
 #   provisioner "local-exec" {
-#     command = <<EOT
-#       # Set the path to the inventory file relative to your directory structure
-#       echo "[jenkins_server]" > ${path.module}/../ansible/inventory.ini
-#       echo "${module.vm.vm_public_ip} ansible_user=azureuser ansible_ssh_private_key_file=${var.ssh_private_key_path}" >> ${path.module}/../ansible/inventory.ini
-#     EOT
+#      environment = {
+#     ANSIBLE_BECOME_PASSWORD = ""
 #   }
+#   command = <<EOT
+#     # Append to the inventory file to avoid overwriting it
+#     echo "[jenkins_server]" >> ${path.module}/../ansible/inventory.ini
+#     echo "${module.vm.vm_public_ip} ansible_user=azureuser ansible_ssh_private_key_file=${var.ssh_private_key_path}" >> ${path.module}/../ansible/inventory.ini
+#   EOT
+# }
 
 #   # Run Ansible playbook to install Jenkins
 #   provisioner "local-exec" {
 #     command = <<EOT
-#       ansible-playbook -i ${path.module}/../ansible/inventory.ini ${path.module}/../ansible/playbook.yml
+#     #  echo "Current User: $(whoami)"
+#      ansible-playbook -vvvv -i ${path.module}/../ansible/inventory.ini ${path.module}/../ansible/playbook.yml
+#      timeout = "600"
+#     EOT
+#   }
+# }
+
+
+# resource "null_resource" "update_inventory_and_run_playbook" {
+#   depends_on = [module.network] # Ensure the network module has completed
+
+#   # Generate inventory file with the public IP of the VM
+#   provisioner "local-exec" {
+#     command = <<EOT
+#       echo "[jenkins_server]" > /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini
+#       echo "${module.vm.vm_public_ip} ansible_user=azureuser ansible_ssh_private_key_file=${var.ssh_private_key_path}" >> /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini
+#     EOT
+#   }
+
+#   # Run Ansible playbook to install Jenkins with --key-file
+#   provisioner "local-exec" {
+#     command = <<EOT
+#       ansible-playbook -i /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini /Users/noble/newclonecicd/cicd_terraform_project/ansible/playbook.yml -vvvv --key-file=${var.ssh_private_key_path}
+#     EOT
+#   }
+# }
+
+
+# resource "null_resource" "update_inventory_and_run_playbook" {
+#   depends_on = [module.network] # Ensure the network module has completed
+
+#   provisioner "local-exec" {
+#     command = <<EOT
+#       # Generate inventory file with the public IP of the VM
+#       echo "[jenkins_server]" > /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini
+#       echo "${module.vm.vm_public_ip} ansible_user=azureuser ansible_ssh_private_key_file=${var.ssh_private_key_path}" >> /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini
+      
+#       # Run Ansible playbook to install Jenkins
+#       ansible-playbook -i /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini /Users/noble/newclonecicd/cicd_terraform_project/ansible/playbook.yml -vvvv --key-file=${var.ssh_private_key_path}
 #     EOT
 #   }
 # }
 
 resource "null_resource" "update_inventory_and_run_playbook" {
-  depends_on = [module.network] # Ensure the network module has completed
+  depends_on = [module.network]  # This ensures the network resources are created first
 
-  # Generate inventory file with the public IP of the VM
+  # First provisioner: Update the Ansible inventory file with the new Jenkins server IP and credentials
   provisioner "local-exec" {
     command = <<EOT
-      echo "[jenkins_server]" > /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini
-      echo "${module.vm.vm_public_ip} ansible_user=azureuser ansible_ssh_private_key_file=${var.ssh_private_key_path}" >> /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini
+      echo "Updating inventory file with Jenkins server IP..."
+      echo "[jenkins_server]" > ${path.module}/../ansible/inventory.ini
+      echo "${module.vm.vm_public_ip} ansible_user=azureuser ansible_ssh_private_key_file=${var.ssh_private_key_path} ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'" >> ${path.module}/../ansible/inventory.ini
+      cat ${path.module}/../ansible/inventory.ini  # Debugging output
     EOT
   }
 
-  # Run Ansible playbook to install Jenkins
+  # Second provisioner: Run the Ansible playbook to install Jenkins
   provisioner "local-exec" {
     command = <<EOT
-      ansible-playbook -i /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini /Users/noble/newclonecicd/cicd_terraform_project/ansible/playbook.yml -vvvv
+      ansible-playbook -vvvv -i ${path.module}/../ansible/inventory.ini ${path.module}/../ansible/playbook.yml
     EOT
   }
 }

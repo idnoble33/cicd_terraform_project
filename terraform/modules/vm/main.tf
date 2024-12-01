@@ -67,28 +67,28 @@ resource "azurerm_linux_virtual_machine" "vm" {
   # OS Profile
   admin_username       = "azureuser"  # Specify the admin username
 
-  # Linux Configuration
+  # Linux Configuration for SSH
   admin_ssh_key {
     username   = "azureuser"  # Must match admin_username
     public_key = file(var.ssh_public_key_path)  # Path to your public key file
   }
 
- # Storage OS Disk Configuration
+  # OS Disk Configuration
   os_disk {
-    name              = "${var.resource_group_name}-osdisk-${count.index}"
-    caching           = "ReadWrite"
-    # disk_size_gb     = 30  # Specify the disk size in GB
+    name                = "${var.resource_group_name}-osdisk-${count.index}"
+    caching             = "ReadWrite"
     storage_account_type = "Standard_LRS"  # Required attribute
+    disk_size_gb        = var.os_disk_size  # Parameterized disk size
   }
 
-  # Source Image Configuration
- source_image_reference {
-  publisher = "Canonical"
-  offer     = "UbuntuServer"
-  sku       = "22.04-LTS"  # or try "20.04-LTS" if necessary
-  version   = "latest"  # You can also specify a specific version if needed
-}
+  # Source Image Configuration (Ubuntu 22.04 LTS)
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
+    version   = "latest"
+  }
 
   # Network Interface Configuration
-  network_interface_ids = [var.network_interface_id]
+  network_interface_ids = [var.network_interface_id]  # Use the passed NIC ID
 }
