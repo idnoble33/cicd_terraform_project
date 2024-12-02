@@ -20,10 +20,4 @@ variable "admin_enabled" {
   type        = bool
   default     = true
 }
-# variable "resource_group" {
-#   description = "Resource group details"
-#   type        = object({
-#     name     = string
-#     location = string
-#   })
-# }
+

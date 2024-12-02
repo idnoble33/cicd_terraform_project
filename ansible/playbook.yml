@@ -1,5 +1,7 @@
+---
 - name: Configure Jenkins Server
   hosts: jenkins_server
   become: true
+  become_user: root
   roles:
     - jenkins

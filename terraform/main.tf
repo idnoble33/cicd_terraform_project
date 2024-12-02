@@ -88,70 +88,8 @@ module "aks" {
   location            = module.resource_group.location
 }
 
-
-# resource "null_resource" "update_inventory_and_run_playbook" {
-#   depends_on = [module.network] # Ensure the network module has completed
-
-#   # Generate inventory file with the public IP of the VM
-#   provisioner "local-exec" {
-#      environment = {
-#     ANSIBLE_BECOME_PASSWORD = ""
-#   }
-#   command = <<EOT
-#     # Append to the inventory file to avoid overwriting it
-#     echo "[jenkins_server]" >> ${path.module}/../ansible/inventory.ini
-#     echo "${module.vm.vm_public_ip} ansible_user=azureuser ansible_ssh_private_key_file=${var.ssh_private_key_path}" >> ${path.module}/../ansible/inventory.ini
-#   EOT
-# }
-
-#   # Run Ansible playbook to install Jenkins
-#   provisioner "local-exec" {
-#     command = <<EOT
-#     #  echo "Current User: $(whoami)"
-#      ansible-playbook -vvvv -i ${path.module}/../ansible/inventory.ini ${path.module}/../ansible/playbook.yml
-#      timeout = "600"
-#     EOT
-#   }
-# }
-
-
-# resource "null_resource" "update_inventory_and_run_playbook" {
-#   depends_on = [module.network] # Ensure the network module has completed
-
-#   # Generate inventory file with the public IP of the VM
-#   provisioner "local-exec" {
-#     command = <<EOT
-#       echo "[jenkins_server]" > /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini
-#       echo "${module.vm.vm_public_ip} ansible_user=azureuser ansible_ssh_private_key_file=${var.ssh_private_key_path}" >> /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini
-#     EOT
-#   }
-
-#   # Run Ansible playbook to install Jenkins with --key-file
-#   provisioner "local-exec" {
-#     command = <<EOT
-#       ansible-playbook -i /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini /Users/noble/newclonecicd/cicd_terraform_project/ansible/playbook.yml -vvvv --key-file=${var.ssh_private_key_path}
-#     EOT
-#   }
-# }
-
-
-# resource "null_resource" "update_inventory_and_run_playbook" {
-#   depends_on = [module.network] # Ensure the network module has completed
-
-#   provisioner "local-exec" {
-#     command = <<EOT
-#       # Generate inventory file with the public IP of the VM
-#       echo "[jenkins_server]" > /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini
-#       echo "${module.vm.vm_public_ip} ansible_user=azureuser ansible_ssh_private_key_file=${var.ssh_private_key_path}" >> /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini
-      
-#       # Run Ansible playbook to install Jenkins
-#       ansible-playbook -i /Users/noble/newclonecicd/cicd_terraform_project/ansible/inventory.ini /Users/noble/newclonecicd/cicd_terraform_project/ansible/playbook.yml -vvvv --key-file=${var.ssh_private_key_path}
-#     EOT
-#   }
-# }
-
 resource "null_resource" "update_inventory_and_run_playbook" {
-  depends_on = [module.network]  # This ensures the network resources are created first
+  depends_on = [module.network]  # create network resources are created first
 
   # First provisioner: Update the Ansible inventory file with the new Jenkins server IP and credentials
   provisioner "local-exec" {
@@ -167,6 +105,49 @@ resource "null_resource" "update_inventory_and_run_playbook" {
   provisioner "local-exec" {
     command = <<EOT
       ansible-playbook -vvvv -i ${path.module}/../ansible/inventory.ini ${path.module}/../ansible/playbook.yml
+    EOT
+  }
+}
+
+
+resource "null_resource" "jenkins_setup" {
+  depends_on = [module.vm]
+
+  provisioner "local-exec" {
+    command = <<EOT
+      # Get the VM public IP address
+      IP_ADDRESS="${module.vm.vm_public_ip}"
+
+      # Attempt to retrieve Jenkins initial admin password with retries
+      max_retries=5
+      attempt=1
+      while [ $attempt -le $max_retries ]; do
+        password=$(ssh -i ~/.ssh/id_rsa_new azureuser@$IP_ADDRESS 'sudo cat /var/lib/jenkins/secrets/initialAdminPassword' 2>/dev/null)
+        
+        if [ -n "$password" ]; then
+          echo "Retrieved Jenkins initial admin password: $password"
+          break
+        fi
+
+        echo "Attempt $attempt failed, retrying..."
+        ((attempt++))
+        sleep 10
+      done
+
+      if [ -z "$password" ]; then
+        echo "Failed to retrieve Jenkins admin password after $max_retries attempts."
+        exit 1
+      fi
+
+      # Run the Jenkins setup with the retrieved password
+      curl -X POST -d "j_username=admin&j_password=$password" \
+      -H "Content-Type: application/x-www-form-urlencoded" \
+      http://$IP_ADDRESS:8080/j_acegi_security_check
+
+      sleep 30
+
+      # Check if Jenkins is up
+      curl http://$IP_ADDRESS:8080 || echo "Jenkins is not up yet"
     EOT
   }
 }

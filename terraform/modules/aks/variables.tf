@@ -19,16 +19,6 @@ variable "vm_size" {
   default = "Standard_NC40ads_H100_v5"
 }
 
-# variable "client_id" {
-#   description = "Client ID for the service principal"
-#   type        = string
-# }
-
-# variable "client_secret" {
-#   description = "Client secret for the service principal"
-#   type        = string
-# }
-
 variable "location" {
   type = string
 }

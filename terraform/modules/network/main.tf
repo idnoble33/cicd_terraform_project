@@ -1,39 +1,3 @@
-# resource "random_string" "suffix" {
-#   length  = 8
-#   special = false
-#   upper   = false
-#   numeric = true
-# }
-# resource "azurerm_network_security_rule" "ssh" {
-#   name                        = "SSH-Allow"
-#   priority                    = 100         # Ensure this priority is unique
-#   direction                   = "Inbound"
-#   access                      = "Allow"
-#   protocol                    = "Tcp"
-#   source_port_range           = "*"
-#   destination_port_range      = "22"
-#   source_address_prefix       = "*"
-#   destination_address_prefix  = "*"
-#   resource_group_name         = "Idowu-Candidate"
-#   network_security_group_name = "aks-agentpool-35803000-nsg"
-# }
-
-# resource "azurerm_network_security_rule" "jenkins" {
-#   name                        = "JenkinsAccess"
-#   priority                    = 101         # Changed priority to avoid conflict
-#   direction                   = "Inbound"
-#   access                      = "Allow"
-#   protocol                    = "Tcp"
-#   source_port_range           = "*"
-#   destination_port_range      = "8080"
-#   source_address_prefix       = "*"
-#   destination_address_prefix  = "*"
-#   resource_group_name         = "Idowu-Candidate"
-#   network_security_group_name = "aks-agentpool-35803000-nsg"
-# }
-
-
-# Generate a random suffix for resource names
 # Generate a random suffix for resource names
 resource "random_string" "suffix" {
   length  = 8
