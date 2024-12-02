@@ -3,11 +3,19 @@ pipeline {
     agent any
 
     environment {
-        ACR_NAME = "<acr-name>.azurecr.io"
+        ACR_NAME = "myacrname123.azurecr.io"
         IMAGE_NAME = "hello-world"
         IMAGE_TAG = "v1"
         HPA_SCRIPT_PATH = "terraform/scripts"
+
+        ADMIN_PASSWORD = credentials('ADMIN_PASSWORD')
+        CLIENT_ID = credentials('CLIENT_ID')
+        CLIENT_SECRET = credentials('CLIENT_SECRET')
+        NETWORK_INTERFACE_ID = credentials('NETWORK_INTERFACE_ID')
+        SSH_PRIVATE= credentials('SSH_PRIVATE)
+        SSH_PUBLIC= credentials('SSH_PUBLIC)
     }
+
 
     stages {
         stage('Build Docker Image') {

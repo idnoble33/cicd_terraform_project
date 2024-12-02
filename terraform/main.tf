@@ -89,7 +89,7 @@ module "aks" {
 }
 
 resource "null_resource" "update_inventory_and_run_playbook" {
-  depends_on = [module.network]  # create network resources are created first
+  depends_on = [module.network]  # ensure network resources are created first
 
   # First provisioner: Update the Ansible inventory file with the new Jenkins server IP and credentials
   provisioner "local-exec" {
@@ -104,50 +104,30 @@ resource "null_resource" "update_inventory_and_run_playbook" {
   # Second provisioner: Run the Ansible playbook to install Jenkins
   provisioner "local-exec" {
     command = <<EOT
-      ansible-playbook -vvvv -i ${path.module}/../ansible/inventory.ini ${path.module}/../ansible/playbook.yml
-    EOT
-  }
-}
-
-
-resource "null_resource" "jenkins_setup" {
-  depends_on = [module.vm]
-
-  provisioner "local-exec" {
-    command = <<EOT
-      # Get the VM public IP address
       IP_ADDRESS="${module.vm.vm_public_ip}"
-
-      # Attempt to retrieve Jenkins initial admin password with retries
       max_retries=5
       attempt=1
+      
+      # Wait for Jenkins server to be ready by checking SSH connectivity
       while [ $attempt -le $max_retries ]; do
-        password=$(ssh -i ~/.ssh/id_rsa_new azureuser@$IP_ADDRESS 'sudo cat /var/lib/jenkins/secrets/initialAdminPassword' 2>/dev/null)
-        
-        if [ -n "$password" ]; then
-          echo "Retrieved Jenkins initial admin password: $password"
+        # Attempt to connect via SSH
+        if ssh -o StrictHostKeyChecking=no -i ${var.ssh_private_key_path} azureuser@$IP_ADDRESS exit; then
+          echo "SSH connection successful."
           break
+        else
+          echo "Attempt $attempt failed, retrying in 10 seconds..."
+          ((attempt++))
+          sleep 10
         fi
-
-        echo "Attempt $attempt failed, retrying..."
-        ((attempt++))
-        sleep 10
       done
 
-      if [ -z "$password" ]; then
-        echo "Failed to retrieve Jenkins admin password after $max_retries attempts."
+      if [ $attempt -gt $max_retries ]; then
+        echo "Failed to establish SSH connection after $max_retries attempts."
         exit 1
       fi
 
-      # Run the Jenkins setup with the retrieved password
-      curl -X POST -d "j_username=admin&j_password=$password" \
-      -H "Content-Type: application/x-www-form-urlencoded" \
-      http://$IP_ADDRESS:8080/j_acegi_security_check
-
-      sleep 30
-
-      # Check if Jenkins is up
-      curl http://$IP_ADDRESS:8080 || echo "Jenkins is not up yet"
+      # If SSH is successful, run the Ansible playbook
+      ansible-playbook -vvvv -i ${path.module}/../ansible/inventory.ini ${path.module}/../ansible/playbook.yml
     EOT
   }
 }
