@@ -12,6 +12,9 @@ spec:
       labels:
         app: hello-world
     spec:
+    spec:
+      imagePullSecrets:
+        - name: regcred
       containers:
       - name: hello-world
         image: "myacrname123.azurecr.io/hello-world:latest"
