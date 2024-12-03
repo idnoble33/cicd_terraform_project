@@ -31,16 +31,26 @@ pipeline {
             }
         }
 
+        stages {
         stage('Delete Existing Resources') {
             steps {
                 script {
                     echo 'Deleting existing Kubernetes resources...'
-                    // Delete all existing resources before applying new YAML files
+
+                    // Check if files exist before attempting to delete
                     sh '''
-                        kubectl delete -f ./application/k8s/deployment.yaml || true
-                        kubectl delete -f ./application/k8s/ingress.yaml || true
-                        kubectl delete -f ./application/k8s/hpa.yaml || true
-                        kubectl delete -f ./application/k8s/other-resources.yaml || true
+                        if [ -f ./application/k8s/deployment.yaml ]; then
+                            kubectl delete -f ./application/k8s/deployment.yaml || true
+                        fi
+                        if [ -f ./application/k8s/ingress.yaml ]; then
+                            kubectl delete -f ./application/k8s/ingress.yaml || true
+                        fi
+                        if [ -f ./application/k8s/hpa.yaml ]; then
+                            kubectl delete -f ./application/k8s/hpa.yaml || true
+                        fi
+                        if [ -f ./application/k8s/other-resources.yaml ]; then
+                            kubectl delete -f ./application/k8s/other-resources.yaml || true
+                        fi
                     '''
                 }
             }
@@ -50,12 +60,21 @@ pipeline {
             steps {
                 script {
                     echo 'Deploying new application resources to AKS...'
-                    // Apply all YAML files to deploy the resources
+
+                    // Apply all YAML files if they exist
                     sh '''
-                        kubectl apply -f ./application/k8s/deployment.yaml
-                        kubectl apply -f ./application/k8s/ingress.yaml
-                        kubectl apply -f ./application/k8s/hpa.yaml
-                        kubectl apply -f ./application/k8s/other-resources.yaml
+                        if [ -f ./application/k8s/deployment.yaml ]; then
+                            kubectl apply -f ./application/k8s/deployment.yaml
+                        fi
+                        if [ -f ./application/k8s/ingress.yaml ]; then
+                            kubectl apply -f ./application/k8s/ingress.yaml
+                        fi
+                        if [ -f ./application/k8s/hpa.yaml ]; then
+                            kubectl apply -f ./application/k8s/hpa.yaml
+                        fi
+                        if [ -f ./application/k8s/other-resources.yaml ]; then
+                            kubectl apply -f ./application/k8s/other-resources.yaml
+                        fi
                     '''
                 }
             }
