@@ -31,14 +31,32 @@ pipeline {
             }
         }
 
+        stage('Delete Existing Resources') {
+            steps {
+                script {
+                    echo 'Deleting existing Kubernetes resources...'
+                    // Delete all existing resources before applying new YAML files
+                    sh '''
+                        kubectl delete -f ./application/k8s/deployment.yaml || true
+                        kubectl delete -f ./application/k8s/ingress.yaml || true
+                        kubectl delete -f ./application/k8s/hpa.yaml || true
+                        kubectl delete -f ./application/k8s/other-resources.yaml || true
+                    '''
+                }
+            }
+        }
+
         stage('Deploy Application') {
             steps {
                 script {
-                    // Apply Kubernetes deployment YAML to AKS
-                    echo 'Deploying application to AKS...'
-                    sh """
+                    echo 'Deploying new application resources to AKS...'
+                    // Apply all YAML files to deploy the resources
+                    sh '''
                         kubectl apply -f ./application/k8s/deployment.yaml
-                    """
+                        kubectl apply -f ./application/k8s/ingress.yaml
+                        kubectl apply -f ./application/k8s/hpa.yaml
+                        kubectl apply -f ./application/k8s/other-resources.yaml
+                    '''
                 }
             }
         }
