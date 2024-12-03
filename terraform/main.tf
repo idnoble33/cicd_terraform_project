@@ -131,3 +131,4 @@ resource "null_resource" "update_inventory_and_run_playbook" {
     EOT
   }
 }
+

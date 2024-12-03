@@ -31,7 +31,7 @@
 
 # - name: Install OpenJDK 17
 #   ansible.builtin.apt:
-#     name: openjdk-17-jre
+#     name: openjdk-17-jdk
 #     state: present
 
 # - name: Install Jenkins
@@ -39,9 +39,15 @@
 #     name: jenkins
 #     state: present
 
-# - name: Execute command on remote server
-#   ansible.builtin.shell: |
-#     ssh -i /Users/noble/.ssh/id_rsa_new azureuser@{{ ansible_host }} "echo 'Connected!'"
+# - name: Wait for Jenkins to start
+#   ansible.builtin.wait_for:
+#     port: 8080
+#     delay: 60
+#     timeout: 300
+
+# - name: Print Jenkins URL
+#   ansible.builtin.debug:
+#     msg: "Jenkins is accessible at: http://{{ ansible_host }}:8080"
 - name: Remove conflicting Jenkins repository configuration
   ansible.builtin.lineinfile:
     path: /etc/apt/sources.list.d/jenkins.list
@@ -76,6 +82,11 @@
 - name: Install OpenJDK 17
   ansible.builtin.apt:
     name: openjdk-17-jdk
+    state: present
+
+- name: Install Docker
+  ansible.builtin.apt:
+    name: docker.io
     state: present
 
 - name: Install Jenkins

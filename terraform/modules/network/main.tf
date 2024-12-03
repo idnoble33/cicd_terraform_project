@@ -15,9 +15,9 @@ resource "azurerm_public_ip" "public_ip" {
   sku                 = var.public_ip_sku
   idle_timeout_in_minutes  = 4
 
-    lifecycle {
-    prevent_destroy = true
-  }
+  #   lifecycle {
+  #   prevent_destroy = true
+  # }
 }
 
 # Virtual Network
