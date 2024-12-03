@@ -1,19 +1,11 @@
 pipeline {
     agent any
 
-    // environment {
-    //     KUBE_CONFIG = "/var/lib/jenkins/.kube/config"
-    //     AKS_RESOURCE_GROUP = "Idowu-Candidate"
-    //     AKS_CLUSTER_NAME = "aks-2hf81s7y"
-    //     DOMAIN_NAME = "joidag.ca"
-    //     CERT_MANAGER_ISSUER = "letsencrypt-prod"
-    //     SECRET_NAME = "hello-world-tls"
-    // }
-       nvironment {
-        AZURE_SUBSCRIPTION_ID = credentials('azure_subscription_id')
-        AZURE_CLIENT_ID       = credentials('azure_client_id')
-        AZURE_CLIENT_SECRET   = credentials('azure_client_secret')
-        AZURE_TENANT_ID       = credentials('azure_tenant_id')
+       environment {
+        AZURE_SUBSCRIPTION_ID = credentials('AZURE_SUBSCRIPTION_ID')
+        AZURE_CLIENT_ID       = credentials('AZURE_CLIENT_ID')
+        AZURE_CLIENT_SECRET   = credentials('AZURE_CLIENT_SECRET')
+        AZURE_TENANT_ID       = credentials('AZURE_TENANT_ID')
         ACR_NAME              = "myacrname123"  // Replace with your actual ACR name
         IMAGE_NAME            = "hello-world"
         IMAGE_TAG             = "v1"
@@ -36,9 +28,9 @@ stage('Azure Login') {
                 script {
                     echo "Logging into Azure..."
                     withCredentials([
-                        string(credentialsId: 'azure_client_id', variable: 'AZURE_CLIENT_ID'),
-                        string(credentialsId: 'azure_client_secret', variable: 'AZURE_CLIENT_SECRET'),
-                        string(credentialsId: 'azure_tenant_id', variable: 'AZURE_TENANT_ID')
+                        string(credentialsId: ' AZURE_CLIENT_ID', variable: 'AZURE_CLIENT_ID'),
+                        string(credentialsId: 'AZURE_CLIENT_SECRET', variable: 'AZURE_CLIENT_SECRET'),
+                        string(credentialsId: 'AZURE_TENANT_ID', variable: 'AZURE_TENANT_ID')
                     ]) {
                         sh """
                             az login --service-principal --username ${AZURE_CLIENT_ID} --password ${AZURE_CLIENT_SECRET} --tenant ${AZURE_TENANT_ID}
