@@ -31,7 +31,6 @@ pipeline {
             }
         }
 
-        stages {
         stage('Delete Existing Resources') {
             steps {
                 script {
@@ -83,10 +82,12 @@ pipeline {
         stage('Create Ingress') {
             steps {
                 script {
-                    // Apply Ingress YAML for domain
                     echo 'Creating Ingress for the application...'
+                    // Apply Ingress YAML for domain
                     sh """
-                        kubectl apply -f ./application/k8s/ingress.yml
+                        if [ -f ./application/k8s/ingress.yaml ]; then
+                            kubectl apply -f ./application/k8s/ingress.yaml
+                        fi
                     """
                 }
             }
@@ -95,10 +96,12 @@ pipeline {
         stage('Apply Horizontal Pod Autoscaler (HPA)') {
             steps {
                 script {
-                    // Apply Horizontal Pod Autoscaler (HPA) YAML
                     echo 'Applying Horizontal Pod Autoscaler...'
+                    // Apply Horizontal Pod Autoscaler (HPA) YAML
                     sh """
-                        kubectl apply -f ./application/k8s/hpa.yml
+                        if [ -f ./application/k8s/hpa.yaml ]; then
+                            kubectl apply -f ./application/k8s/hpa.yaml
+                        fi
                     """
                 }
             }
@@ -107,12 +110,11 @@ pipeline {
         stage('Monitor HPA') {
             steps {
                 script {
-                    // Monitor HPA status
                     echo 'Monitoring HPA...'
-                    sh """
+                    sh '''
                         chmod +x terraform/scripts/monitor-hpa.sh
                         terraform/scripts/monitor-hpa.sh
-                    """
+                    '''
                 }
             }
         }
@@ -120,12 +122,11 @@ pipeline {
         stage('Benchmark Application') {
             steps {
                 script {
-                    // Run benchmarking scripts to validate the application
                     echo 'Benchmarking application...'
-                    sh """
+                    sh '''
                         chmod +x terraform/scripts/benchmark-hpa.sh
                         terraform/scripts/benchmark-hpa.sh
-                    """
+                    '''
                 }
             }
         }
@@ -133,7 +134,6 @@ pipeline {
         stage('Apply SSL Cert Manager') {
             steps {
                 script {
-                    // Ensure cert-manager is installed and the secret for SSL cert is created
                     echo 'Applying SSL certificate using cert-manager...'
 
                     // Check if cert-manager is installed
@@ -170,7 +170,6 @@ pipeline {
         stage('Monitor Application Access') {
             steps {
                 script {
-                    // Monitor if the application is accessible with HTTPS
                     echo 'Checking if the application is accessible...'
                     sh """
                         curl -k https://$DOMAIN_NAME
@@ -179,6 +178,7 @@ pipeline {
             }
         }
     }
+
     post {
         success {
             echo 'Pipeline executed successfully.'
