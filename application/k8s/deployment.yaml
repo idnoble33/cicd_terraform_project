@@ -12,6 +12,10 @@ spec:
       labels:
         app: hello-world
     spec:
-  containers:
-  - name: hello-world
-    image: myacrname123.azurecr.io/hello-world:latest
+      containers:
+      - name: hello-world
+        image: "myacrname123.azurecr.io/hello-world:latest"
+        ports:
+        - containerPort: 80
+      imagePullSecrets:
+      - name: regcred
