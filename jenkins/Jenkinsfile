@@ -85,7 +85,8 @@ pipeline {
         AZURE_CLIENT_ID       = credentials('AZURE_CLIENT_ID')
         AZURE_CLIENT_SECRET   = credentials('AZURE_CLIENT_SECRET')
         AZURE_TENANT_ID       = credentials('AZURE_TENANT_ID')
-        ACR_NAME              = credentials('ACR_NAME')
+        // ACR_NAME              = credentials('ACR_NAME')
+        ACR_NAME              = "myacrname123"
         IMAGE_NAME            = "hello-world"
         IMAGE_TAG             = "v1"
     }
