@@ -36,19 +36,19 @@ pipeline {
                 script {
                     echo 'Deleting existing Kubernetes resources...'
 
-                    // Check if files exist before attempting to delete
+                    // Delete existing resources if YAML files exist
                     sh '''
-                        if [ -f ./application/k8s/deployment.yaml ]; then
-                            kubectl delete -f ./application/k8s/deployment.yaml || true
+                        if [ -f ./application/k8s/deployment.yml ]; then
+                            kubectl delete -f ./application/k8s/deployment.yml || true
                         fi
-                        if [ -f ./application/k8s/ingress.yaml ]; then
-                            kubectl delete -f ./application/k8s/ingress.yaml || true
+                        if [ -f ./application/k8s/hpa.yml ]; then
+                            kubectl delete -f ./application/k8s/hpa.yml || true
                         fi
-                        if [ -f ./application/k8s/hpa.yaml ]; then
-                            kubectl delete -f ./application/k8s/hpa.yaml || true
+                        if [ -f ./application/k8s/ingress.yml ]; then
+                            kubectl delete -f ./application/k8s/ingress.yml || true
                         fi
-                        if [ -f ./application/k8s/other-resources.yaml ]; then
-                            kubectl delete -f ./application/k8s/other-resources.yaml || true
+                        if [ -f ./application/k8s/service.yml ]; then
+                            kubectl delete -f ./application/k8s/service.yml || true
                         fi
                     '''
                 }
@@ -60,19 +60,28 @@ pipeline {
                 script {
                     echo 'Deploying new application resources to AKS...'
 
-                    // Apply all YAML files if they exist
+                    // Apply YAML files for deployment
                     sh '''
-                        if [ -f ./application/k8s/deployment.yaml ]; then
-                            kubectl apply -f ./application/k8s/deployment.yaml
+                        if [ -f ./application/k8s/deployment.yml ]; then
+                            kubectl apply -f ./application/k8s/deployment.yml
                         fi
-                        if [ -f ./application/k8s/ingress.yaml ]; then
-                            kubectl apply -f ./application/k8s/ingress.yaml
+                        if [ -f ./application/k8s/service.yml ]; then
+                            kubectl apply -f ./application/k8s/service.yml
                         fi
-                        if [ -f ./application/k8s/hpa.yaml ]; then
-                            kubectl apply -f ./application/k8s/hpa.yaml
-                        fi
-                        if [ -f ./application/k8s/other-resources.yaml ]; then
-                            kubectl apply -f ./application/k8s/other-resources.yaml
+                    '''
+                }
+            }
+        }
+
+        stage('Apply Horizontal Pod Autoscaler (HPA)') {
+            steps {
+                script {
+                    echo 'Applying Horizontal Pod Autoscaler...'
+
+                    // Apply HPA YAML file
+                    sh '''
+                        if [ -f ./application/k8s/hpa.yml ]; then
+                            kubectl apply -f ./application/k8s/hpa.yml
                         fi
                     '''
                 }
@@ -83,26 +92,13 @@ pipeline {
             steps {
                 script {
                     echo 'Creating Ingress for the application...'
-                    // Apply Ingress YAML for domain
-                    sh """
-                        if [ -f ./application/k8s/ingress.yaml ]; then
-                            kubectl apply -f ./application/k8s/ingress.yaml
-                        fi
-                    """
-                }
-            }
-        }
 
-        stage('Apply Horizontal Pod Autoscaler (HPA)') {
-            steps {
-                script {
-                    echo 'Applying Horizontal Pod Autoscaler...'
-                    // Apply Horizontal Pod Autoscaler (HPA) YAML
-                    sh """
-                        if [ -f ./application/k8s/hpa.yaml ]; then
-                            kubectl apply -f ./application/k8s/hpa.yaml
+                    // Apply Ingress YAML file
+                    sh '''
+                        if [ -f ./application/k8s/ingress.yml ]; then
+                            kubectl apply -f ./application/k8s/ingress.yml
                         fi
-                    """
+                    '''
                 }
             }
         }
@@ -110,7 +106,7 @@ pipeline {
         stage('Monitor HPA') {
             steps {
                 script {
-                    echo 'Monitoring HPA...'
+                    echo 'Monitoring HPA status...'
                     sh '''
                         chmod +x terraform/scripts/monitor-hpa.sh
                         terraform/scripts/monitor-hpa.sh
@@ -119,58 +115,10 @@ pipeline {
             }
         }
 
-        stage('Benchmark Application') {
-            steps {
-                script {
-                    echo 'Benchmarking application...'
-                    sh '''
-                        chmod +x terraform/scripts/benchmark-hpa.sh
-                        terraform/scripts/benchmark-hpa.sh
-                    '''
-                }
-            }
-        }
-
-        stage('Apply SSL Cert Manager') {
-            steps {
-                script {
-                    echo 'Applying SSL certificate using cert-manager...'
-
-                    // Check if cert-manager is installed
-                    sh """
-                        kubectl get pods --namespace cert-manager || kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.crds.yaml
-                        helm repo add jetstack https://charts.jetstack.io
-                        helm repo update
-                        helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version v1.7.1
-                    """
-
-                    // Create ClusterIssuer (if not already present)
-                    sh """
-                        kubectl apply -f - <<EOF
-                        apiVersion: cert-manager.io/v1
-                        kind: ClusterIssuer
-                        metadata:
-                          name: letsencrypt-prod
-                        spec:
-                          acme:
-                            server: https://acme-v02.api.letsencrypt.org/directory
-                            email: your-email@example.com
-                            privateKeySecretRef:
-                              name: letsencrypt-prod-key
-                            solvers:
-                              - http01:
-                                  ingress:
-                                    class: nginx
-                        EOF
-                    """
-                }
-            }
-        }
-
         stage('Monitor Application Access') {
             steps {
                 script {
-                    echo 'Checking if the application is accessible...'
+                    echo 'Verifying application accessibility...'
                     sh """
                         curl -k https://$DOMAIN_NAME
                     """
