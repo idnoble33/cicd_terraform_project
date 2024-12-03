@@ -2,12 +2,16 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: hello-world-ingress
-  namespace: default
   annotations:
-    kubernetes.io/ingress.class: "nginx"
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
+  tls:
+  - hosts:
+    - joidag.ca
+    secretName: hello-world-tls
   rules:
-  - host: "joidag.ca"
+  - host: joidag.ca
     http:
       paths:
       - path: /
@@ -17,5 +21,3 @@ spec:
             name: hello-world-service
             port:
               number: 80
-
-  
