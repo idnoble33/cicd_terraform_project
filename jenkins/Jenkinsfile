@@ -31,30 +31,6 @@ pipeline {
             }
         }
 
-        stage('Delete Existing Resources') {
-            steps {
-                script {
-                    echo 'Deleting existing Kubernetes resources...'
-
-                    // Delete existing resources if YAML files exist
-                    sh '''
-                        if [ -f ./application/k8s/deployment.yml ]; then
-                            kubectl delete -f ./application/k8s/deployment.yml || true
-                        fi
-                        if [ -f ./application/k8s/hpa.yml ]; then
-                            kubectl delete -f ./application/k8s/hpa.yml || true
-                        fi
-                        if [ -f ./application/k8s/ingress.yml ]; then
-                            kubectl delete -f ./application/k8s/ingress.yml || true
-                        fi
-                        if [ -f ./application/k8s/service.yml ]; then
-                            kubectl delete -f ./application/k8s/service.yml || true
-                        fi
-                    '''
-                }
-            }
-        }
-
         stage('Deploy Application') {
             steps {
                 script {
