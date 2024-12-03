@@ -14,8 +14,71 @@ pipeline {
         stage('Checkout') {
             steps {
                 script {
-                    // Checkout the repo containing your Kubernetes YAMLs
+                    // Checkout the repository
                     checkout scm
+                }
+            }
+        }
+
+        stage('Terraform Prompt') {
+            steps {
+                script {
+                    // Prompt the user to choose between apply or destroy
+                    def action = input(
+                        message: 'Choose Terraform Action:',
+                        parameters: [choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Choose action to perform')]
+                    )
+                    echo "You selected: ${action}"
+                    env.TERRAFORM_ACTION = action
+                }
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                script {
+                    echo 'Initializing Terraform...'
+                    sh '''
+                        cd terraform
+                        terraform init
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                script {
+                    echo 'Planning Terraform changes...'
+                    sh '''
+                        cd terraform
+                        terraform plan -out=tfplan
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Apply or Destroy') {
+            when {
+                expression {
+                    return env.TERRAFORM_ACTION == 'apply' || env.TERRAFORM_ACTION == 'destroy'
+                }
+            }
+            steps {
+                script {
+                    if (env.TERRAFORM_ACTION == 'apply') {
+                        echo 'Applying Terraform plan...'
+                        sh '''
+                            cd terraform
+                            terraform apply -auto-approve tfplan
+                        '''
+                    } else if (env.TERRAFORM_ACTION == 'destroy') {
+                        echo 'Destroying Terraform resources...'
+                        sh '''
+                            cd terraform
+                            terraform destroy -auto-approve
+                        '''
+                    }
                 }
             }
         }
@@ -31,36 +94,10 @@ pipeline {
             }
         }
 
-        stage('Delete Existing Resources') {
+        stage('Deploy Kubernetes Resources') {
             steps {
                 script {
-                    echo 'Deleting existing Kubernetes resources...'
-
-                    // Delete existing resources if YAML files exist
-                    sh '''
-                        if [ -f ./application/k8s/deployment.yml ]; then
-                            kubectl delete -f ./application/k8s/deployment.yml || true
-                        fi
-                        if [ -f ./application/k8s/hpa.yml ]; then
-                            kubectl delete -f ./application/k8s/hpa.yml || true
-                        fi
-                        if [ -f ./application/k8s/ingress.yml ]; then
-                            kubectl delete -f ./application/k8s/ingress.yml || true
-                        fi
-                        if [ -f ./application/k8s/service.yml ]; then
-                            kubectl delete -f ./application/k8s/service.yml || true
-                        fi
-                    '''
-                }
-            }
-        }
-
-        stage('Deploy Application') {
-            steps {
-                script {
-                    echo 'Deploying new application resources to AKS...'
-
-                    // Apply YAML files for deployment
+                    echo 'Applying Kubernetes resources...'
                     sh '''
                         if [ -f ./application/k8s/deployment.yml ]; then
                             kubectl apply -f ./application/k8s/deployment.yml
@@ -68,33 +105,9 @@ pipeline {
                         if [ -f ./application/k8s/service.yml ]; then
                             kubectl apply -f ./application/k8s/service.yml
                         fi
-                    '''
-                }
-            }
-        }
-
-        stage('Apply Horizontal Pod Autoscaler (HPA)') {
-            steps {
-                script {
-                    echo 'Applying Horizontal Pod Autoscaler...'
-
-                    // Apply HPA YAML file
-                    sh '''
                         if [ -f ./application/k8s/hpa.yml ]; then
                             kubectl apply -f ./application/k8s/hpa.yml
                         fi
-                    '''
-                }
-            }
-        }
-
-        stage('Create Ingress') {
-            steps {
-                script {
-                    echo 'Creating Ingress for the application...'
-
-                    // Apply Ingress YAML file
-                    sh '''
                         if [ -f ./application/k8s/ingress.yml ]; then
                             kubectl apply -f ./application/k8s/ingress.yml
                         fi
@@ -103,22 +116,10 @@ pipeline {
             }
         }
 
-        stage('Monitor HPA') {
+        stage('Monitor Application') {
             steps {
                 script {
-                    echo 'Monitoring HPA status...'
-                    sh '''
-                        chmod +x terraform/scripts/monitor-hpa.sh
-                        terraform/scripts/monitor-hpa.sh
-                    '''
-                }
-            }
-        }
-
-        stage('Monitor Application Access') {
-            steps {
-                script {
-                    echo 'Verifying application accessibility...'
+                    echo 'Monitoring application accessibility...'
                     sh """
                         curl -k https://$DOMAIN_NAME
                     """
