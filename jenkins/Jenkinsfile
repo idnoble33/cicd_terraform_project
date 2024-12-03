@@ -1,152 +1,61 @@
-// pipeline {
-//     agent any
-
-//     environment {
-//         ACR_NAME = "myacrname123.azurecr.io"
-//         IMAGE_NAME = "hello-world"
-//         IMAGE_TAG = "v1"
-//         HPA_SCRIPT_PATH = "terraform/scripts"
-
-//         ADMIN_PASSWORD = credentials('ADMIN_PASSWORD')
-//         CLIENT_ID = credentials('CLIENT_ID')
-//         CLIENT_SECRET = credentials('CLIENT_SECRET')
-//         NETWORK_INTERFACE_ID = credentials('NETWORK_INTERFACE_ID')
-//         SSH_PRIVATE= credentials('SSH_PRIVATE)
-//         SSH_PUBLIC= credentials('SSH_PUBLIC)
-//     }
-
-
-//     stages {
-//         stage('Build Docker Image') {
-//             steps {
-//                 script {
-//                     sh "docker build -t ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG} ."
-//                 }
-//             }
-//         }
-//         stage('Push to ACR') {
-//             steps {
-//                 script {
-//                     sh "docker push ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
-//                 }
-//             }
-//         }
-//         stage('Deploy to AKS') {
-//             steps {
-//                 script {
-//                     sh 'kubectl apply -f k8s/deployment.yaml'
-//                     sh 'kubectl apply -f k8s/service.yaml'
-//                     sh 'kubectl apply -f k8s/ingress.yaml'
-//                 }
-//             }
-//         }
-//         stage('Apply HPA') {
-//             steps {
-//                 script {
-//                     sh 'kubectl apply -f k8s/hpa.yaml'
-//                 }
-//             }
-//         }
-//         stage('Monitor HPA') {
-//             steps {
-//                 script {
-//                     sh """
-//                     chmod +x ${HPA_SCRIPT_PATH}/monitor-hpa.sh
-//                     ${HPA_SCRIPT_PATH}/monitor-hpa.sh &
-//                     """
-//                 }
-//             }
-//         }
-//         stage('Benchmark Application') {
-//             steps {
-//                 script {
-//                     sh """
-//                     chmod +x ${HPA_SCRIPT_PATH}/benchmark-hpa.sh
-//                     ${HPA_SCRIPT_PATH}/benchmark-hpa.sh
-//                     """
-//                 }
-//             }
-//         }
-//     }
-
-//     post {
-//         always {
-//             script {
-//                 echo "Cleaning up background processes (if any)."
-//                 sh 'pkill -f monitor-hpa.sh || true'
-//             }
-//         }
-//     }
-// }
 pipeline {
     agent any
 
     environment {
-    AZURE_SUBSCRIPTION_ID = credentials('azure_subscription_id')
-    AZURE_CLIENT_ID       = credentials('azure_client_id')
-    AZURE_CLIENT_SECRET   = credentials('azure_client_secret')
-    AZURE_TENANT_ID       = credentials('azure_tenant_id')
-    ACR_NAME              = "myacrname123"
-    IMAGE_NAME            = "hello-world"
-    IMAGE_TAG             = "v1"
-}
+        ACR_NAME = "<acr-name>.azurecr.io"
+        IMAGE_NAME = "hello-world"
+        IMAGE_TAG = "v1"
+        HPA_SCRIPT_PATH = "terraform/scripts"
+    }
 
     stages {
-        stage('Checkout Code') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Azure Login') {
-            steps {
-                script {
-                    echo "Logging into Azure..."
-                    sh """
-                        az login --service-principal \
-                        --username $AZURE_CLIENT_ID \
-                        --password $AZURE_CLIENT_SECRET \
-                        --tenant $AZURE_TENANT_ID
-                    """
-                    sh "az account set --subscription $AZURE_SUBSCRIPTION_ID"
-                }
-            }
-        }
-
-        stage('ACR Login') {
-            steps {
-                script {
-                    echo "Logging into Azure Container Registry..."
-                    sh "az acr login --name $ACR_NAME"
-                }
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 script {
-                    echo "Building Docker image: $ACR_NAME/$IMAGE_NAME:$IMAGE_TAG"
+                    sh "docker build -t ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG} ."
+                }
+            }
+        }
+        stage('Push to ACR') {
+            steps {
+                script {
+                    sh "docker push ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
+                }
+            }
+        }
+        stage('Deploy to AKS') {
+            steps {
+                script {
+                    sh 'kubectl apply -f k8s/deployment.yaml'
+                    sh 'kubectl apply -f k8s/service.yaml'
+                    sh 'kubectl apply -f k8s/ingress.yaml'
+                }
+            }
+        }
+        stage('Apply HPA') {
+            steps {
+                script {
+                    sh 'kubectl apply -f k8s/hpa.yaml'
+                }
+            }
+        }
+        stage('Monitor HPA') {
+            steps {
+                script {
                     sh """
-                        docker buildx build --platform linux/amd64 -t $ACR_NAME/$IMAGE_NAME:$IMAGE_TAG -f application/Dockerfile application
+                    chmod +x ${HPA_SCRIPT_PATH}/monitor-hpa.sh
+                    ${HPA_SCRIPT_PATH}/monitor-hpa.sh &
                     """
                 }
             }
         }
-
-        stage('Tag Docker Image') {
+        stage('Benchmark Application') {
             steps {
                 script {
-                    echo "Tagging Docker image..."
-                    sh "docker tag $ACR_NAME/$IMAGE_NAME:$IMAGE_TAG $ACR_NAME.azurecr.io/$IMAGE_NAME:$IMAGE_TAG"
-                }
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                script {
-                    echo "Pushing Docker image to Azure Container Registry..."
-                    sh "docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$IMAGE_TAG"
+                    sh """
+                    chmod +x ${HPA_SCRIPT_PATH}/benchmark-hpa.sh
+                    ${HPA_SCRIPT_PATH}/benchmark-hpa.sh
+                    """
                 }
             }
         }
@@ -155,16 +64,9 @@ pipeline {
     post {
         always {
             script {
-                echo "Cleaning up Docker images..."
-                sh "docker rmi $ACR_NAME/$IMAGE_NAME:$IMAGE_TAG $ACR_NAME.azurecr.io/$IMAGE_NAME:$IMAGE_TAG || true"
+                echo "Cleaning up background processes (if any)."
+                sh 'pkill -f monitor-hpa.sh || true'
             }
-        }
-        success {
-            echo "Pipeline completed successfully!"
-        }
-        failure {
-            echo "Pipeline failed. Check the logs for details."
         }
     }
 }
-
