@@ -1,13 +1,25 @@
 pipeline {
     agent any
 
-    environment {
-        KUBE_CONFIG = "/var/lib/jenkins/.kube/config"
-        AKS_RESOURCE_GROUP = "Idowu-Candidate"
-        AKS_CLUSTER_NAME = "aks-2hf81s7y"
-        DOMAIN_NAME = "joidag.ca"
-        CERT_MANAGER_ISSUER = "letsencrypt-prod"
-        SECRET_NAME = "hello-world-tls"
+    // environment {
+    //     KUBE_CONFIG = "/var/lib/jenkins/.kube/config"
+    //     AKS_RESOURCE_GROUP = "Idowu-Candidate"
+    //     AKS_CLUSTER_NAME = "aks-2hf81s7y"
+    //     DOMAIN_NAME = "joidag.ca"
+    //     CERT_MANAGER_ISSUER = "letsencrypt-prod"
+    //     SECRET_NAME = "hello-world-tls"
+    // }
+       nvironment {
+        AZURE_SUBSCRIPTION_ID = credentials('azure_subscription_id')
+        AZURE_CLIENT_ID       = credentials('azure_client_id')
+        AZURE_CLIENT_SECRET   = credentials('azure_client_secret')
+        AZURE_TENANT_ID       = credentials('azure_tenant_id')
+        ACR_NAME              = "myacrname123"  // Replace with your actual ACR name
+        IMAGE_NAME            = "hello-world"
+        IMAGE_TAG             = "v1"
+        HPA_SCRIPT_PATH       = "terraform/scripts" // Path for HPA scripts
+        RESOURCE_GROUP        = "Idowu-Candidate"
+        AKS_CLUSTER_NAME      = "aks-c3z6s4f8" // Correct AKS cluster name
     }
 
     stages {
@@ -19,7 +31,58 @@ pipeline {
                 }
             }
         }
+stage('Azure Login') {
+            steps {
+                script {
+                    echo "Logging into Azure..."
+                    withCredentials([
+                        string(credentialsId: 'azure_client_id', variable: 'AZURE_CLIENT_ID'),
+                        string(credentialsId: 'azure_client_secret', variable: 'AZURE_CLIENT_SECRET'),
+                        string(credentialsId: 'azure_tenant_id', variable: 'AZURE_TENANT_ID')
+                    ]) {
+                        sh """
+                            az login --service-principal --username ${AZURE_CLIENT_ID} --password ${AZURE_CLIENT_SECRET} --tenant ${AZURE_TENANT_ID}
+                        """
+                    }
+                }
+            }
+        }
 
+        stage('Login to Azure Container Registry') {
+            steps {
+                script {
+                    echo "Logging into Azure Container Registry..."
+                    sh "az acr login --name ${ACR_NAME}"
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo "Building image: ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
+                    sh "docker build -f application/Dockerfile -t ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG} application"
+                }
+            }
+        }
+
+        stage('Tag Docker Image') {
+            steps {
+                script {
+                    echo "Tagging Docker image"
+                    sh "docker tag ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG} ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage('Push Docker Image to ACR') {
+            steps {
+                script {
+                    echo "Pushing Docker image to Azure Container Registry"
+                    sh "docker push ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${IMAGE_TAG}"
+                }
+            }
+        }
         stage('Setup Kubernetes Credentials') {
             steps {
                 script {
