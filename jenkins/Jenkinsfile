@@ -2,71 +2,152 @@ pipeline {
     agent any
 
     environment {
-        ACR_NAME = "<acr-name>.azurecr.io"
-        IMAGE_NAME = "hello-world"
-        IMAGE_TAG = "v1"
-        HPA_SCRIPT_PATH = "terraform/scripts"
+        KUBE_CONFIG = "/var/lib/jenkins/.kube/config"
+        AKS_RESOURCE_GROUP = "Idowu-Candidate"
+        AKS_CLUSTER_NAME = "aks-2hf81s7y"
+        DOMAIN_NAME = "joidag.ca"
+        CERT_MANAGER_ISSUER = "letsencrypt-prod"
+        SECRET_NAME = "hello-world-tls"
     }
 
     stages {
-        stage('Build Docker Image') {
+        stage('Checkout') {
             steps {
                 script {
-                    sh "docker build -t ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG} ."
+                    // Checkout the repo containing your Kubernetes YAMLs
+                    checkout scm
                 }
             }
         }
-        stage('Push to ACR') {
+
+        stage('Setup Kubernetes Credentials') {
             steps {
                 script {
-                    sh "docker push ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
-                }
-            }
-        }
-        stage('Deploy to AKS') {
-            steps {
-                script {
-                    sh 'kubectl apply -f k8s/deployment.yaml'
-                    sh 'kubectl apply -f k8s/service.yaml'
-                    sh 'kubectl apply -f k8s/ingress.yaml'
-                }
-            }
-        }
-        stage('Apply HPA') {
-            steps {
-                script {
-                    sh 'kubectl apply -f k8s/hpa.yaml'
-                }
-            }
-        }
-        stage('Monitor HPA') {
-            steps {
-                script {
+                    // Get AKS credentials to configure kubectl
                     sh """
-                    chmod +x ${HPA_SCRIPT_PATH}/monitor-hpa.sh
-                    ${HPA_SCRIPT_PATH}/monitor-hpa.sh &
+                        az aks get-credentials --resource-group ${AKS_RESOURCE_GROUP} --name ${AKS_CLUSTER_NAME} --overwrite-existing
                     """
                 }
             }
         }
+
+        stage('Deploy Application') {
+            steps {
+                script {
+                    // Apply Kubernetes deployment YAML to AKS
+                    echo 'Deploying application to AKS...'
+                    sh """
+                        kubectl apply -f ./application/k8s/deployment.yaml
+                    """
+                }
+            }
+        }
+
+        stage('Create Ingress') {
+            steps {
+                script {
+                    // Apply Ingress YAML for domain
+                    echo 'Creating Ingress for the application...'
+                    sh """
+                        kubectl apply -f ./application/k8s/ingress.yml
+                    """
+                }
+            }
+        }
+
+        stage('Apply Horizontal Pod Autoscaler (HPA)') {
+            steps {
+                script {
+                    // Apply Horizontal Pod Autoscaler (HPA) YAML
+                    echo 'Applying Horizontal Pod Autoscaler...'
+                    sh """
+                        kubectl apply -f ./application/k8s/hpa.yml
+                    """
+                }
+            }
+        }
+
+        stage('Monitor HPA') {
+            steps {
+                script {
+                    // Monitor HPA status
+                    echo 'Monitoring HPA...'
+                    sh """
+                        chmod +x terraform/scripts/monitor-hpa.sh
+                        terraform/scripts/monitor-hpa.sh
+                    """
+                }
+            }
+        }
+
         stage('Benchmark Application') {
             steps {
                 script {
+                    // Run benchmarking scripts to validate the application
+                    echo 'Benchmarking application...'
                     sh """
-                    chmod +x ${HPA_SCRIPT_PATH}/benchmark-hpa.sh
-                    ${HPA_SCRIPT_PATH}/benchmark-hpa.sh
+                        chmod +x terraform/scripts/benchmark-hpa.sh
+                        terraform/scripts/benchmark-hpa.sh
+                    """
+                }
+            }
+        }
+
+        stage('Apply SSL Cert Manager') {
+            steps {
+                script {
+                    // Ensure cert-manager is installed and the secret for SSL cert is created
+                    echo 'Applying SSL certificate using cert-manager...'
+
+                    // Check if cert-manager is installed
+                    sh """
+                        kubectl get pods --namespace cert-manager || kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.crds.yaml
+                        helm repo add jetstack https://charts.jetstack.io
+                        helm repo update
+                        helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version v1.7.1
+                    """
+
+                    // Create ClusterIssuer (if not already present)
+                    sh """
+                        kubectl apply -f - <<EOF
+                        apiVersion: cert-manager.io/v1
+                        kind: ClusterIssuer
+                        metadata:
+                          name: letsencrypt-prod
+                        spec:
+                          acme:
+                            server: https://acme-v02.api.letsencrypt.org/directory
+                            email: your-email@example.com
+                            privateKeySecretRef:
+                              name: letsencrypt-prod-key
+                            solvers:
+                              - http01:
+                                  ingress:
+                                    class: nginx
+                        EOF
+                    """
+                }
+            }
+        }
+
+        stage('Monitor Application Access') {
+            steps {
+                script {
+                    // Monitor if the application is accessible with HTTPS
+                    echo 'Checking if the application is accessible...'
+                    sh """
+                        curl -k https://$DOMAIN_NAME
                     """
                 }
             }
         }
     }
-
     post {
-        always {
-            script {
-                echo "Cleaning up background processes (if any)."
-                sh 'pkill -f monitor-hpa.sh || true'
-            }
+        success {
+            echo 'Pipeline executed successfully.'
+        }
+        failure {
+            echo 'Pipeline execution failed.'
         }
     }
 }
