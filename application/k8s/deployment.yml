@@ -14,8 +14,6 @@ spec:
       labels:
         app: hello-world
     spec:
-      imagePullSecrets:
-      - name: acr-secret
       containers:
       - name: hello-world-container
         image: myacrname123.azurecr.io/hello-world:latest
@@ -31,3 +29,5 @@ spec:
         env:
         - name: DOMAIN_NAME
           value: "joidag.ca"
+      imagePullSecrets:
+      - name: acr-secret
