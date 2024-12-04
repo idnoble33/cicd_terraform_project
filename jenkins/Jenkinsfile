@@ -1,39 +1,44 @@
 pipeline {
     agent any
 
-       environment {
+    environment {
         AZURE_SUBSCRIPTION_ID = credentials('AZURE_SUBSCRIPTION_ID')
         AZURE_CLIENT_ID       = credentials('AZURE_CLIENT_ID')
         AZURE_CLIENT_SECRET   = credentials('AZURE_CLIENT_SECRET')
         AZURE_TENANT_ID       = credentials('AZURE_TENANT_ID')
-        ACR_NAME              = "myacrname123"  // Replace with your actual ACR name
+        ACR_NAME              = "myacrname123"
         IMAGE_NAME            = "hello-world"
         IMAGE_TAG             = "v1"
-        HPA_SCRIPT_PATH       = "terraform/scripts" // Path for HPA scripts
+        HPA_SCRIPT_PATH       = "terraform/scripts"
         RESOURCE_GROUP        = "Idowu-Candidate"
-        AKS_CLUSTER_NAME      = "aks-c3z6s4f8" // Correct AKS cluster name
+        AKS_CLUSTER_NAME      = "aks-6pcoskve" 
     }
 
     stages {
         stage('Checkout') {
             steps {
                 script {
-                    // Checkout the repo containing your Kubernetes YAMLs
                     checkout scm
                 }
             }
         }
-stage('Azure Login') {
+
+        stage('Azure Login') {
             steps {
                 script {
                     echo "Logging into Azure..."
                     withCredentials([
-                        string(credentialsId: ' AZURE_CLIENT_ID', variable: 'AZURE_CLIENT_ID'),
+                        string(credentialsId: 'AZURE_CLIENT_ID', variable: 'AZURE_CLIENT_ID'),
                         string(credentialsId: 'AZURE_CLIENT_SECRET', variable: 'AZURE_CLIENT_SECRET'),
                         string(credentialsId: 'AZURE_TENANT_ID', variable: 'AZURE_TENANT_ID')
                     ]) {
+                        // Set environment variables securely
+                        env.AZURE_CLIENT_ID = "${AZURE_CLIENT_ID}"
+                        env.AZURE_CLIENT_SECRET = "${AZURE_CLIENT_SECRET}"
+                        env.AZURE_TENANT_ID = "${AZURE_TENANT_ID}"
+
                         sh """
-                            az login --service-principal --username ${AZURE_CLIENT_ID} --password ${AZURE_CLIENT_SECRET} --tenant ${AZURE_TENANT_ID}
+                            az login --service-principal --username \$AZURE_CLIENT_ID --password \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID
                         """
                     }
                 }
@@ -44,7 +49,7 @@ stage('Azure Login') {
             steps {
                 script {
                     echo "Logging into Azure Container Registry..."
-                    sh "az acr login --name ${ACR_NAME}"
+                    sh "az acr login -n ${ACR_NAME} --expose-token"
                 }
             }
         }
@@ -53,7 +58,10 @@ stage('Azure Login') {
             steps {
                 script {
                     echo "Building image: ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
-                    sh "docker build -f application/Dockerfile -t ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG} application"
+                    def result = sh(script: "docker build -f application/Dockerfile -t ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG} application", returnStatus: true)
+                    if (result != 0) {
+                        error "Docker build failed."
+                    }
                 }
             }
         }
@@ -75,12 +83,13 @@ stage('Azure Login') {
                 }
             }
         }
-        stage('Setup Kubernetes Credentials') {
+
+         stage('Setup Kubernetes Credentials') {
             steps {
                 script {
-                    // Get AKS credentials to configure kubectl
+                    echo "Getting AKS credentials..."
                     sh """
-                        az aks get-credentials --resource-group ${AKS_RESOURCE_GROUP} --name ${AKS_CLUSTER_NAME} --overwrite-existing
+                        az aks get-credentials --resource-group ${RESOURCE_GROUP} --name ${AKS_CLUSTER_NAME} --overwrite-existing
                     """
                 }
             }
@@ -89,17 +98,9 @@ stage('Azure Login') {
         stage('Deploy Application') {
             steps {
                 script {
-                    echo 'Deploying new application resources to AKS...'
-
-                    // Apply YAML files for deployment
-                    sh '''
-                        if [ -f ./application/k8s/deployment.yml ]; then
-                            kubectl apply -f ./application/k8s/deployment.yml
-                        fi
-                        if [ -f ./application/k8s/service.yml ]; then
-                            kubectl apply -f ./application/k8s/service.yml
-                        fi
-                    '''
+                    echo 'Deploying application resources to AKS...'
+                    applyK8sConfig('./application/k8s/deployment.yml')
+                    applyK8sConfig('./application/k8s/service.yml')
                 }
             }
         }
@@ -108,13 +109,7 @@ stage('Azure Login') {
             steps {
                 script {
                     echo 'Applying Horizontal Pod Autoscaler...'
-
-                    // Apply HPA YAML file
-                    sh '''
-                        if [ -f ./application/k8s/hpa.yml ]; then
-                            kubectl apply -f ./application/k8s/hpa.yml
-                        fi
-                    '''
+                    applyK8sConfig('./application/k8s/hpa.yml')
                 }
             }
         }
@@ -123,13 +118,7 @@ stage('Azure Login') {
             steps {
                 script {
                     echo 'Creating Ingress for the application...'
-
-                    // Apply Ingress YAML file
-                    sh '''
-                        if [ -f ./application/k8s/ingress.yml ]; then
-                            kubectl apply -f ./application/k8s/ingress.yml
-                        fi
-                    '''
+                    applyK8sConfig('./application/k8s/ingress.yml')
                 }
             }
         }
@@ -139,8 +128,8 @@ stage('Azure Login') {
                 script {
                     echo 'Monitoring HPA status...'
                     sh '''
-                        chmod +x terraform/scripts/monitor-hpa.sh
-                        terraform/scripts/monitor-hpa.sh
+                        chmod +x ${HPA_SCRIPT_PATH}/monitor-hpa.sh
+                        ${HPA_SCRIPT_PATH}/monitor-hpa.sh
                     '''
                 }
             }
@@ -161,9 +150,20 @@ stage('Azure Login') {
     post {
         success {
             echo 'Pipeline executed successfully.'
+            // Add notification logic here if needed
         }
         failure {
             echo 'Pipeline execution failed.'
+            // Add notification logic here if needed
         }
+    }
+}
+
+// Helper function to apply Kubernetes configurations
+def applyK8sConfig(filePath) {
+    if (fileExists(filePath) && fileSize(filePath) > 0) {
+        sh "kubectl apply -f ${filePath}"
+    } else {
+        echo "File ${filePath} does not exist or is empty."
     }
 }

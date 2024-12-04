@@ -84,11 +84,6 @@
     name: openjdk-17-jdk
     state: present
 
-- name: Install Docker
-  ansible.builtin.apt:
-    name: docker.io
-    state: present
-
 - name: Install Jenkins
   ansible.builtin.apt:
     name: jenkins
