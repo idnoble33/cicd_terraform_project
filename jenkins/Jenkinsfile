@@ -28,7 +28,7 @@ pipeline {
             steps {
                 script {
                     echo 'Listing contents of the application/k8s directory...'
-                    sh "ls -R ./application/k8s"
+                    sh "ls -la ./application/k8s"
                 }
             }
         }
