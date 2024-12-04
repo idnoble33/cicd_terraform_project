@@ -66,10 +66,7 @@ pipeline {
             }
         }
 
-        pipeline {
-    agent any
-
-    stages {
+        stages {
         stage('Tag Docker Image') {
             steps {
                 script {
@@ -119,8 +116,6 @@ pipeline {
                 }
             }
         }
-    }
-}
         stage('Apply Horizontal Pod Autoscaler (HPA)') {
             steps {
                 script {
