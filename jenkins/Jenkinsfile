@@ -27,6 +27,8 @@ pipeline {
         stage('Debug Checkout') {
             steps {
                 script {
+                    echo 'Listing current directory...'
+                    sh "ls -la"
                     echo 'Listing contents of the application/k8s directory...'
                     sh "ls -la ./application/k8s"
                 }
@@ -110,7 +112,7 @@ pipeline {
                     echo 'Deploying application resources to AKS...'
                     def files = ['./application/k8s/deployment.yml', './application/k8s/service.yml']
                     for (file in files) {
-                        if (fileExists(file) && fileSize(file) > 0) {
+                        if (fileExists(file)) {
                             applyK8sConfig(file)
                         } else {
                             echo "File ${file} does not exist or is empty."
