@@ -130,12 +130,34 @@ pipeline {
                 script {
                     echo 'Applying Horizontal Pod Autoscaler...'
                     def hpaFile = './application/k8s/hpa.yml'
-                    if (fileExists(hpaFile) && fileSize(hpaFile) > 0) {
-                        applyK8sConfig(hpaFile)
+                    if (fileExists(hpaFile)) {
+                        def fileNotEmpty = sh(script: "test -s ${hpaFile} && echo 1 || echo 0", returnStdout: true).trim()
+                        if (fileNotEmpty == "1") {
+                            echo "Applying ${hpaFile}..."
+                            sh "kubectl apply -f ${hpaFile}"
+                        } else {
+                            echo "File ${hpaFile} exists but is empty."
+                        }
                     } else {
-                        echo "File ${hpaFile} does not exist or is empty."
+                        echo "File ${hpaFile} does not exist."
                     }
                 }
+            }
+        }
+
+
+                def applyK8sConfig(file) {
+            echo "Checking ${file}..."
+            if (fileExists(file)) {
+                def fileNotEmpty = sh(script: "test -s ${file} && echo 1 || echo 0", returnStdout: true).trim()
+                if (fileNotEmpty == "1") {
+                    echo "Applying ${file}..."
+                    sh "kubectl apply -f ${file}"
+                } else {
+                    echo "File ${file} exists but is empty."
+                }
+            } else {
+                echo "File ${file} does not exist."
             }
         }
 
@@ -144,26 +166,28 @@ pipeline {
                 script {
                     echo 'Creating Ingress for the application...'
                     def ingressFile = './application/k8s/ingress.yml'
-                    if (fileExists(ingressFile) && fileSize(ingressFile) > 0) {
-                        applyK8sConfig(ingressFile)
-                    } else {
-                        echo "File ${ingressFile} does not exist or is empty."
-                    }
+                    applyK8sConfig(ingressFile)
                 }
             }
         }
+
 
         stage('Monitor HPA') {
             steps {
                 script {
                     echo 'Monitoring HPA status...'
-                    sh '''
-                        chmod +x ${HPA_SCRIPT_PATH}/monitor-hpa.sh
-                        ${HPA_SCRIPT_PATH}/monitor-hpa.sh
-                    '''
+                    def monitorScript = "${HPA_SCRIPT_PATH}/monitor-hpa.sh"
+                    if (fileExists(monitorScript)) {
+                        echo "Ensuring ${monitorScript} is executable..."
+                        sh "chmod +x ${monitorScript}"
+                        sh monitorScript
+                    } else {
+                        echo "Monitoring script ${monitorScript} does not exist."
+                    }
                 }
             }
         }
+
 
         stage('Monitor Application Access') {
             steps {
