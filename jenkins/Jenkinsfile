@@ -12,7 +12,7 @@ pipeline {
         HPA_SCRIPT_PATH       = "terraform/scripts"
         RESOURCE_GROUP        = "Idowu-Candidate"
         AKS_CLUSTER_NAME      = "aks-6pcoskve" 
-        DOMAIN_NAME           = "joidag.com" // Update with your domain
+        DOMAIN_NAME           = "joidag.com"
     }
 
     stages {
@@ -45,7 +45,8 @@ pipeline {
             steps {
                 script {
                     echo "Logging into Azure Container Registry..."
-                    sh "az acr login -n ${ACR_NAME} --expose-token"
+                    def loginToken = sh(script: "az acr login --name ${ACR_NAME} --expose-token --query accessToken -o tsv", returnStdout: true).trim()
+                    sh "echo \$loginToken | docker login ${ACR_NAME}.azurecr.io --username \$AZURE_CLIENT_ID --password-stdin"
                 }
             }
         }
@@ -149,7 +150,6 @@ pipeline {
         }
         failure {
             echo 'Pipeline execution failed.'
-            
         }
     }
 }
