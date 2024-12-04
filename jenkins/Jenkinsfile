@@ -11,8 +11,8 @@ pipeline {
         IMAGE_TAG             = "v1"
         HPA_SCRIPT_PATH       = "terraform/scripts"
         RESOURCE_GROUP        = "Idowu-Candidate"
-        AKS_CLUSTER_NAME      = "aks-6pcoskve" 
-        DOMAIN_NAME           = "joidag.com"
+        AKS_CLUSTER_NAME      = "aks-6pcoskve"
+        DOMAIN_NAME           = "joidag.com" // Update with your domain
     }
 
     stages {
@@ -20,6 +20,15 @@ pipeline {
             steps {
                 script {
                     checkout scm
+                }
+            }
+        }
+
+        stage('Debug Checkout') {
+            steps {
+                script {
+                    echo 'Listing contents of the application/k8s directory...'
+                    sh "ls -R ./application/k8s"
                 }
             }
         }
@@ -99,8 +108,15 @@ pipeline {
             steps {
                 script {
                     echo 'Deploying application resources to AKS...'
-                    applyK8sConfig('./application/k8s/deployment.yml')
-                    applyK8sConfig('./application/k8s/service.yml')
+                    def files = ['./application/k8s/deployment.yml', './application/k8s/service.yml']
+                    for (file in files) {
+                        if (fileExists(file) && fileSize(file) > 0) {
+                            applyK8sConfig(file)
+                        } else {
+                            echo "File ${file} does not exist or is empty."
+                            error "Deployment cannot proceed due to missing configuration files."
+                        }
+                    }
                 }
             }
         }
@@ -109,7 +125,12 @@ pipeline {
             steps {
                 script {
                     echo 'Applying Horizontal Pod Autoscaler...'
-                    applyK8sConfig('./application/k8s/hpa.yml')
+                    def hpaFile = './application/k8s/hpa.yml'
+                    if (fileExists(hpaFile) && fileSize(hpaFile) > 0) {
+                        applyK8sConfig(hpaFile)
+                    } else {
+                        echo "File ${hpaFile} does not exist or is empty."
+                    }
                 }
             }
         }
@@ -118,7 +139,12 @@ pipeline {
             steps {
                 script {
                     echo 'Creating Ingress for the application...'
-                    applyK8sConfig('./application/k8s/ingress.yml')
+                    def ingressFile = './application/k8s/ingress.yml'
+                    if (fileExists(ingressFile) && fileSize(ingressFile) > 0) {
+                        applyK8sConfig(ingressFile)
+                    } else {
+                        echo "File ${ingressFile} does not exist or is empty."
+                    }
                 }
             }
         }
