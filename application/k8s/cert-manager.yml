@@ -11,4 +11,4 @@ spec:
     solvers:
     - http01:
         ingress:
-          class: nginx # Ensure this matches your Ingress class
+          class: nginx
