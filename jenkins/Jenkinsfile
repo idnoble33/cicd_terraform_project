@@ -106,6 +106,7 @@ pipeline {
             }
         }
 
+        
         stage('Deploy Application') {
             steps {
                 script {
@@ -113,9 +114,9 @@ pipeline {
                     def files = ['./application/k8s/deployment.yml', './application/k8s/service.yml']
                     for (file in files) {
                         if (fileExists(file)) {
-                            applyK8sConfig(file)
+                            sh "kubectl apply -f ${file}"
                         } else {
-                            echo "File ${file} does not exist or is empty."
+                            echo "File ${file} does not exist."
                             error "Deployment cannot proceed due to missing configuration files."
                         }
                     }
