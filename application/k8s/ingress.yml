@@ -9,10 +9,10 @@ metadata:
 spec:
   tls:
   - hosts:
-    - joidag.ca
-    secretName: hello-world-tls
+    - idowu
+    secretName: hello-world-tls # The certificate will be stored in this secret
   rules:
-  - host: joidag.ca
+  - host: idowu
     http:
       paths:
       - path: /
