@@ -8,7 +8,7 @@ pipeline {
         AZURE_TENANT_ID       = credentials('AZURE_TENANT_ID')
         ACR_NAME              = "myacrname123"
         IMAGE_NAME            = "hello-world"
-        IMAGE_TAG             = "v1"
+        IMAGE_TAG             = "latest"
         HPA_SCRIPT_PATH       = "terraform/scripts"
         RESOURCE_GROUP        = "Idowu-Candidate"
         AKS_CLUSTER_NAME      = "aks-6pcoskve"
@@ -90,6 +90,21 @@ pipeline {
                 script {
                     echo "Pushing Docker image to Azure Container Registry"
                     sh "docker push ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage('Create ACR Secret') {
+            steps {
+                script {
+                    echo "Creating Docker registry secret..."
+                    sh """
+                        kubectl create secret docker-registry acr-secret \
+                        --docker-server=${ACR_NAME}.azurecr.io \
+                        --docker-username=${AZURE_CLIENT_ID} \
+                        --docker-password=${AZURE_CLIENT_SECRET} \
+                        --docker-email=idowu@yahoo.com --dry-run=client -o yaml | kubectl apply -f -
+                    """
                 }
             }
         }
