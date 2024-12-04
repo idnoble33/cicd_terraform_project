@@ -12,7 +12,7 @@ pipeline {
         HPA_SCRIPT_PATH       = "terraform/scripts"
         RESOURCE_GROUP        = "Idowu-Candidate"
         AKS_CLUSTER_NAME      = "aks-6pcoskve"
-        DOMAIN_NAME           = "joidag.com" // Update with your domain
+        DOMAIN_NAME           = "joidag.com"
     }
 
     stages {
@@ -111,6 +111,7 @@ pipeline {
             steps {
                 script {
                     echo 'Deploying application resources to AKS...'
+                    sh 'export PATH=$PATH:/usr/local/bin'
                     def files = ['./application/k8s/deployment.yml', './application/k8s/service.yml']
                     for (file in files) {
                         if (fileExists(file)) {
