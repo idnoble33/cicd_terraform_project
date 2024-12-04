@@ -66,11 +66,26 @@ pipeline {
             }
         }
 
+        pipeline {
+    agent any
+
+    stages {
         stage('Tag Docker Image') {
             steps {
                 script {
                     echo "Tagging Docker image"
                     sh "docker tag ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG} ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage('Login to ACR') {
+            steps {
+                script {
+                    echo "Logging into Azure Container Registry"
+                    sh """
+                        echo "\${{ secrets.ACR_PASSWORD }}" | docker login ${ACR_NAME}.azurecr.io --username ${ACR_NAME} --password-stdin
+                    """
                 }
             }
         }
@@ -84,7 +99,7 @@ pipeline {
             }
         }
 
-         stage('Setup Kubernetes Credentials') {
+        stage('Setup Kubernetes Credentials') {
             steps {
                 script {
                     echo "Getting AKS credentials..."
@@ -104,7 +119,8 @@ pipeline {
                 }
             }
         }
-
+    }
+}
         stage('Apply Horizontal Pod Autoscaler (HPA)') {
             steps {
                 script {
