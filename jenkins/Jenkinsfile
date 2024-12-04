@@ -46,7 +46,10 @@ pipeline {
                 script {
                     echo "Logging into Azure Container Registry..."
                     def loginToken = sh(script: "az acr login --name ${ACR_NAME} --expose-token --query accessToken -o tsv", returnStdout: true).trim()
-                    sh "echo \$loginToken | docker login ${ACR_NAME}.azurecr.io --username \$AZURE_CLIENT_ID --password-stdin"
+                    // Use the Docker login command with the retrieved token
+                    sh """
+                        docker login ${ACR_NAME}.azurecr.io --username 00000000-0000-0000-0000-000000000000 --password ${loginToken}
+                    """
                 }
             }
         }
