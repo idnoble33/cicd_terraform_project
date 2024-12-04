@@ -57,7 +57,6 @@ pipeline {
                 script {
                     echo "Logging into Azure Container Registry..."
                     def loginToken = sh(script: "az acr login --name ${ACR_NAME} --expose-token --query accessToken -o tsv", returnStdout: true).trim()
-                    // Use the Docker login command with the retrieved token
                     sh """
                         docker login ${ACR_NAME}.azurecr.io --username 00000000-0000-0000-0000-000000000000 --password ${loginToken}
                     """
@@ -106,19 +105,17 @@ pipeline {
             }
         }
 
-        
         stage('Deploy Application') {
             steps {
                 script {
                     echo 'Deploying application resources to AKS...'
-                    sh 'export PATH=$PATH:/usr/local/bin'
                     def files = ['./application/k8s/deployment.yml', './application/k8s/service.yml']
                     for (file in files) {
-                        if (fileExists(file)) {
+                        if (fileExists(file) && sh(script: "test -s ${file} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
                             sh "kubectl apply -f ${file}"
                         } else {
-                            echo "File ${file} does not exist."
-                            error "Deployment cannot proceed due to missing configuration files."
+                            echo "File ${file} does not exist or is empty."
+                            error "Deployment cannot proceed due to missing or empty configuration files."
                         }
                     }
                 }
@@ -130,34 +127,13 @@ pipeline {
                 script {
                     echo 'Applying Horizontal Pod Autoscaler...'
                     def hpaFile = './application/k8s/hpa.yml'
-                    if (fileExists(hpaFile)) {
-                        def fileNotEmpty = sh(script: "test -s ${hpaFile} && echo 1 || echo 0", returnStdout: true).trim()
-                        if (fileNotEmpty == "1") {
-                            echo "Applying ${hpaFile}..."
-                            sh "kubectl apply -f ${hpaFile}"
-                        } else {
-                            echo "File ${hpaFile} exists but is empty."
-                        }
+                    if (fileExists(hpaFile) && sh(script: "test -s ${hpaFile} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
+                        echo "Applying ${hpaFile}..."
+                        sh "kubectl apply -f ${hpaFile}"
                     } else {
-                        echo "File ${hpaFile} does not exist."
+                        echo "File ${hpaFile} does not exist or is empty."
                     }
                 }
-            }
-        }
-
-
-                def applyK8sConfig(file) {
-            echo "Checking ${file}..."
-            if (fileExists(file)) {
-                def fileNotEmpty = sh(script: "test -s ${file} && echo 1 || echo 0", returnStdout: true).trim()
-                if (fileNotEmpty == "1") {
-                    echo "Applying ${file}..."
-                    sh "kubectl apply -f ${file}"
-                } else {
-                    echo "File ${file} exists but is empty."
-                }
-            } else {
-                echo "File ${file} does not exist."
             }
         }
 
@@ -166,11 +142,14 @@ pipeline {
                 script {
                     echo 'Creating Ingress for the application...'
                     def ingressFile = './application/k8s/ingress.yml'
-                    applyK8sConfig(ingressFile)
+                    if (fileExists(ingressFile) && sh(script: "test -s ${ingressFile} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
+                        applyK8sConfig(ingressFile)
+                    } else {
+                        echo "File ${ingressFile} does not exist or is empty."
+                    }
                 }
             }
         }
-
 
         stage('Monitor HPA') {
             steps {
@@ -187,7 +166,6 @@ pipeline {
                 }
             }
         }
-
 
         stage('Monitor Application Access') {
             steps {
@@ -213,7 +191,7 @@ pipeline {
 
 // Helper function to apply Kubernetes configurations
 def applyK8sConfig(filePath) {
-    if (fileExists(filePath) && fileSize(filePath) > 0) {
+    if (fileExists(filePath) && sh(script: "test -s ${filePath} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
         sh "kubectl apply -f ${filePath}"
     } else {
         echo "File ${filePath} does not exist or is empty."
