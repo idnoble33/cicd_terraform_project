@@ -238,11 +238,11 @@ pipeline {
     }
 }
 
-// Helper function to apply Kubernetes configurations
-def applyK8sConfig(filePath) {
-    if (fileExists(filePath) && sh(script: "test -s ${filePath} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
-        sh "kubectl apply -f ${filePath}"
-    } else {
-        echo "File ${filePath} does not exist or is empty."
-    }
-}
+// // Helper function to apply Kubernetes configurations
+// def applyK8sConfig(filePath) {
+//     if (fileExists(filePath) && sh(script: "test -s ${filePath} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
+//         sh "kubectl apply -f ${filePath}"
+//     } else {
+//         echo "File ${filePath} does not exist or is empty."
+//     }
+// }
