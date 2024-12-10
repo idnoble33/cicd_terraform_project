@@ -1,3 +1,269 @@
+// pipeline {
+//     agent any
+
+//     environment {
+//         AZURE_SUBSCRIPTION_ID = credentials('AZURE_SUBSCRIPTION_ID')
+//         AZURE_CLIENT_ID       = credentials('AZURE_CLIENT_ID')
+//         AZURE_CLIENT_SECRET   = credentials('AZURE_CLIENT_SECRET')
+//         AZURE_TENANT_ID       = credentials('AZURE_TENANT_ID')
+//         ACR_NAME              = "myacrname123"
+//         IMAGE_NAME            = "hello-world"
+//         IMAGE_TAG             = "latest"
+//         HPA_SCRIPT_PATH       = "terraform/scripts"
+//         RESOURCE_GROUP        = "Idowu-Candidate"
+//         AKS_CLUSTER_NAME      = "aks-6pcoskve"
+//         DOMAIN_NAME           = "joidag.com"
+//     }
+
+//     stages {
+//         stage('Checkout') {
+//             steps {
+//                 script {
+//                     checkout scm
+//                 }
+//             }
+//         }
+
+//         stage('Debug Checkout') {
+//             steps {
+//                 script {
+//                     echo 'Listing current directory...'
+//                     sh "ls -la"
+//                     echo 'Listing contents of the application/k8s directory...'
+//                     sh "ls -la ./application/k8s"
+//                 }
+//             }
+//         }
+
+//         stage('Verify Docker Installation') {
+//             steps {
+//                 script {
+//                     echo 'Verifying Docker installation...'
+//                     def dockerInstalled = sh(script: "docker --version || echo 'not installed'", returnStdout: true).trim()
+//                     if (dockerInstalled.contains("not installed")) {
+//                         echo 'Docker not found, installing Docker...'
+//                         sh """
+//                             sudo apt-get update
+//                             sudo apt-get install -y docker.io
+//                             sudo systemctl start docker
+//                             sudo systemctl enable docker
+//                         """
+//                         echo 'Docker installed successfully.'
+//                     } else {
+//                         echo "Docker is already installed: ${dockerInstalled}"
+//                     }
+//                 }
+//             }
+//         }
+
+//         stage('Test Docker') {
+//             steps {
+//                 script {
+//                     echo 'Testing Docker with hello-world container...'
+//                     sh "docker run hello-world"
+//                 }
+//             }
+//         }
+//         stage('Setup Azure CLI') {
+//             steps {
+//                 sh '''
+//                 sudo apt-get update
+//                 sudo apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg
+//                 curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+//                 '''
+//             }
+//         }
+//         stage('Azure Login') {
+//             steps {
+//                 script {
+//                     echo "Logging into Azure..."
+//                     withCredentials([
+//                         string(credentialsId: 'AZURE_CLIENT_ID', variable: 'AZURE_CLIENT_ID'),
+//                         string(credentialsId: 'AZURE_CLIENT_SECRET', variable: 'AZURE_CLIENT_SECRET'),
+//                         string(credentialsId: 'AZURE_TENANT_ID', variable: 'AZURE_TENANT_ID')
+//                     ]) {
+//                         sh """
+//                             az login --service-principal --username \$AZURE_CLIENT_ID --password \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID
+//                         """
+//                     }
+//                 }
+//             }
+//         }
+
+//         stage('Login to Azure Container Registry') {
+//             steps {
+//                 script {
+//                     echo "Logging into Azure Container Registry..."
+//                     def loginToken = sh(script: "az acr login --name ${ACR_NAME} --expose-token --query accessToken -o tsv", returnStdout: true).trim()
+//                     sh """
+//                         docker login ${ACR_NAME}.azurecr.io --username 00000000-0000-0000-0000-000000000000 --password ${loginToken}
+//                     """
+//                 }
+//             }
+//         }
+
+//         stage('Build Docker Image') {
+//             steps {
+//                 script {
+//                     echo "Building image: ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
+//                     def result = sh(script: "docker build -f application/Dockerfile -t ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG} application", returnStatus: true)
+//                     if (result != 0) {
+//                         error "Docker build failed."
+//                     }
+//                 }
+//             }
+//         }
+
+//         stage('Tag Docker Image') {
+//             steps {
+//                 script {
+//                     echo "Tagging Docker image"
+//                     sh "docker tag ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG} ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${IMAGE_TAG}"
+//                 }
+//             }
+//         }
+
+//         stage('Push Docker Image to ACR') {
+//             steps {
+//                 script {
+//                     echo "Pushing Docker image to Azure Container Registry"
+//                     sh "docker push ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${IMAGE_TAG}"
+//                 }
+//             }
+//         }
+
+//         stage('Create ACR Secret') {
+//             steps {
+//                 script {
+//                     echo "Creating Docker registry secret..."
+//                     sh """
+//                         kubectl create secret docker-registry acr-secret \
+//                         --docker-server=${ACR_NAME}.azurecr.io \
+//                         --docker-username=${AZURE_CLIENT_ID} \
+//                         --docker-password=${AZURE_CLIENT_SECRET} \
+//                         --docker-email=idowu@yahoo.com --dry-run=client -o yaml | kubectl apply -f -
+//                     """
+//                 }
+//             }
+//         }
+
+//         stage('Setup Kubernetes Credentials') {
+//             steps {
+//                 script {
+//                     echo "Getting AKS credentials..."
+//                     sh """
+//                         az aks get-credentials --resource-group ${RESOURCE_GROUP} --name ${AKS_CLUSTER_NAME} --overwrite-existing
+//                     """
+//                 }
+//             }
+//         }
+
+//         stage('Deploy Application') {
+//             steps {
+//                 script {
+//                     echo 'Deploying application resources to AKS...'
+//                     def files = ['./application/k8s/deployment.yml', './application/k8s/service.yml']
+//                     for (file in files) {
+//                         if (fileExists(file) && sh(script: "test -s ${file} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
+//                             sh "kubectl apply -f ${file}"
+//                         } else {
+//                             echo "File ${file} does not exist or is empty."
+//                             error "Deployment cannot proceed due to missing or empty configuration files."
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+
+//         stage('Apply Horizontal Pod Autoscaler (HPA)') {
+//             steps {
+//                 script {
+//                     echo 'Applying Horizontal Pod Autoscaler...'
+//                     def hpaFile = './application/k8s/hpa.yml'
+//                     if (fileExists(hpaFile) && sh(script: "test -s ${hpaFile} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
+//                         echo "Applying ${hpaFile}..."
+//                         sh "kubectl apply -f ${hpaFile}"
+//                     } else {
+//                         echo "File ${hpaFile} does not exist or is empty."
+//                     }
+//                 }
+//             }
+//         }
+
+//         stage('Create Ingress') {
+//             steps {
+//                 script {
+//                     echo 'Creating Ingress for the application...'
+//                     def ingressFile = './application/k8s/ingress.yml'
+//                     if (fileExists(ingressFile) && sh(script: "test -s ${ingressFile} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
+//                         applyK8sConfig(ingressFile)
+//                     } else {
+//                         echo "File ${ingressFile} does not exist or is empty."
+//                     }
+//                 }
+//             }
+//         }
+
+//         stage('Monitor HPA') {
+//             steps {
+//                 script {
+//                     echo 'Monitoring HPA status...'
+//                     def monitorScript = "${HPA_SCRIPT_PATH}/monitor-hpa.sh"
+//                     if (fileExists(monitorScript)) {
+//                         echo "Ensuring ${monitorScript} is executable..."
+//                         sh "chmod +x ${monitorScript}"
+//                         sh monitorScript
+//                     } else {
+//                         echo "Monitoring script ${monitorScript} does not exist."
+//                     }
+//                 }
+//             }
+//         }
+//         stage('Run HPA Benchmark') {
+//             steps {
+//                 script {
+//                     echo 'Running HPA benchmark...'
+//                     def benchmarkScript = "${HPA_SCRIPT_PATH}/benchmark-hpa.sh"
+//                     if (fileExists(benchmarkScript)) {
+//                         echo "Ensuring ${benchmarkScript} is executable..."
+//                         sh "chmod +x ${benchmarkScript}"
+//                         sh benchmarkScript
+//                     } else {
+//                         echo "Benchmark script ${benchmarkScript} does not exist."
+//                     }
+//                 }
+//             }
+//         }
+//         stage('Monitor Application Access') {
+//             steps {
+//                 script {
+//                     echo 'Verifying application accessibility...'
+//                     sh """
+//                         curl -k https://$DOMAIN_NAME
+//                     """
+//                 }
+//             }
+//         }
+//     }
+
+//     post {
+//         success {
+//             echo 'Pipeline executed successfully.'
+//         }
+//         failure {
+//             echo 'Pipeline execution failed.'
+//         }
+//     }
+// }
+
+// // Helper function to apply Kubernetes configurations
+// def applyK8sConfig(filePath) {
+//     if (fileExists(filePath) && sh(script: "test -s ${filePath} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
+//         sh "kubectl apply -f ${filePath}"
+//     } else {
+//         echo "File ${filePath} does not exist or is empty."
+//     }
+// }
 pipeline {
     agent any
 
@@ -16,6 +282,8 @@ pipeline {
     }
 
     stages {
+
+        // 1️⃣ Checkout Source Code
         stage('Checkout') {
             steps {
                 script {
@@ -24,226 +292,113 @@ pipeline {
             }
         }
 
+        // 2️⃣ Debug Workspace Contents
         stage('Debug Checkout') {
             steps {
-                script {
-                    echo 'Listing current directory...'
-                    sh "ls -la"
-                    echo 'Listing contents of the application/k8s directory...'
-                    sh "ls -la ./application/k8s"
-                }
+                sh "ls -la"
+                sh "ls -la ./application/k8s"
             }
         }
 
-        stage('Verify Docker Installation') {
-            steps {
-                script {
-                    echo 'Verifying Docker installation...'
-                    def dockerInstalled = sh(script: "docker --version || echo 'not installed'", returnStdout: true).trim()
-                    if (dockerInstalled.contains("not installed")) {
-                        echo 'Docker not found, installing Docker...'
-                        sh """
-                            sudo apt-get update
-                            sudo apt-get install -y docker.io
-                            sudo systemctl start docker
-                            sudo systemctl enable docker
-                        """
-                        echo 'Docker installed successfully.'
-                    } else {
-                        echo "Docker is already installed: ${dockerInstalled}"
-                    }
-                }
-            }
-        }
-
-        stage('Test Docker') {
-            steps {
-                script {
-                    echo 'Testing Docker with hello-world container...'
-                    sh "docker run hello-world"
-                }
-            }
-        }
-        stage('Setup Azure CLI') {
+        // 3️⃣ Verify Docker Installation
+        stage('Setup Docker') {
             steps {
                 sh '''
-                sudo apt-get update
-                sudo apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg
-                curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+                    sudo apt-get update
+                    sudo apt-get install -y docker.io
+                    sudo systemctl start docker
+                    sudo systemctl enable docker
+                    docker --version
                 '''
             }
         }
+
+        // 4️⃣ Install Azure CLI
+        stage('Setup Azure CLI') {
+            steps {
+                sh '''
+                    curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+                    az --version
+                '''
+            }
+        }
+
+        // 5️⃣ Authenticate with Azure
         stage('Azure Login') {
             steps {
-                script {
-                    echo "Logging into Azure..."
-                    withCredentials([
-                        string(credentialsId: 'AZURE_CLIENT_ID', variable: 'AZURE_CLIENT_ID'),
-                        string(credentialsId: 'AZURE_CLIENT_SECRET', variable: 'AZURE_CLIENT_SECRET'),
-                        string(credentialsId: 'AZURE_TENANT_ID', variable: 'AZURE_TENANT_ID')
-                    ]) {
-                        sh """
-                            az login --service-principal --username \$AZURE_CLIENT_ID --password \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID
-                        """
-                    }
-                }
+                sh '''
+                    az login --service-principal \
+                        --username ${AZURE_CLIENT_ID} \
+                        --password ${AZURE_CLIENT_SECRET} \
+                        --tenant ${AZURE_TENANT_ID}
+                '''
             }
         }
 
-        stage('Login to Azure Container Registry') {
+        // 6️⃣ Log into ACR
+        stage('Login to ACR') {
             steps {
-                script {
-                    echo "Logging into Azure Container Registry..."
-                    def loginToken = sh(script: "az acr login --name ${ACR_NAME} --expose-token --query accessToken -o tsv", returnStdout: true).trim()
-                    sh """
-                        docker login ${ACR_NAME}.azurecr.io --username 00000000-0000-0000-0000-000000000000 --password ${loginToken}
-                    """
-                }
+                sh '''
+                    az acr login --name ${ACR_NAME}
+                '''
             }
         }
 
+        // 7️⃣ Build Docker Image
         stage('Build Docker Image') {
             steps {
-                script {
-                    echo "Building image: ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
-                    def result = sh(script: "docker build -f application/Dockerfile -t ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG} application", returnStatus: true)
-                    if (result != 0) {
-                        error "Docker build failed."
-                    }
-                }
+                sh '''
+                    docker build -t ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${IMAGE_TAG} application/
+                '''
             }
         }
 
-        stage('Tag Docker Image') {
+        // 8️⃣ Push Image to ACR
+        stage('Push Image to ACR') {
             steps {
-                script {
-                    echo "Tagging Docker image"
-                    sh "docker tag ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG} ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${IMAGE_TAG}"
-                }
+                sh '''
+                    docker push ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${IMAGE_TAG}
+                '''
             }
         }
 
-        stage('Push Docker Image to ACR') {
+        // 9️⃣ Set up Kubernetes credentials
+        stage('Setup AKS Credentials') {
             steps {
-                script {
-                    echo "Pushing Docker image to Azure Container Registry"
-                    sh "docker push ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${IMAGE_TAG}"
-                }
+                sh '''
+                    az aks get-credentials --resource-group ${RESOURCE_GROUP} --name ${AKS_CLUSTER_NAME}
+                '''
             }
         }
 
-        stage('Create ACR Secret') {
+        // 🔟 Deploy Application
+        stage('Deploy to AKS') {
             steps {
-                script {
-                    echo "Creating Docker registry secret..."
-                    sh """
-                        kubectl create secret docker-registry acr-secret \
-                        --docker-server=${ACR_NAME}.azurecr.io \
-                        --docker-username=${AZURE_CLIENT_ID} \
-                        --docker-password=${AZURE_CLIENT_SECRET} \
-                        --docker-email=idowu@yahoo.com --dry-run=client -o yaml | kubectl apply -f -
-                    """
-                }
+                sh '''
+                    kubectl apply -f ./application/k8s/deployment.yml
+                    kubectl apply -f ./application/k8s/service.yml
+                '''
             }
         }
 
-        stage('Setup Kubernetes Credentials') {
+        // 1️⃣1️⃣ Apply HPA Configuration
+        stage('Setup HPA') {
             steps {
-                script {
-                    echo "Getting AKS credentials..."
-                    sh """
-                        az aks get-credentials --resource-group ${RESOURCE_GROUP} --name ${AKS_CLUSTER_NAME} --overwrite-existing
-                    """
-                }
+                sh '''
+                    kubectl apply -f ./application/k8s/hpa.yml
+                '''
             }
         }
 
-        stage('Deploy Application') {
-            steps {
-                script {
-                    echo 'Deploying application resources to AKS...'
-                    def files = ['./application/k8s/deployment.yml', './application/k8s/service.yml']
-                    for (file in files) {
-                        if (fileExists(file) && sh(script: "test -s ${file} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
-                            sh "kubectl apply -f ${file}"
-                        } else {
-                            echo "File ${file} does not exist or is empty."
-                            error "Deployment cannot proceed due to missing or empty configuration files."
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Apply Horizontal Pod Autoscaler (HPA)') {
-            steps {
-                script {
-                    echo 'Applying Horizontal Pod Autoscaler...'
-                    def hpaFile = './application/k8s/hpa.yml'
-                    if (fileExists(hpaFile) && sh(script: "test -s ${hpaFile} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
-                        echo "Applying ${hpaFile}..."
-                        sh "kubectl apply -f ${hpaFile}"
-                    } else {
-                        echo "File ${hpaFile} does not exist or is empty."
-                    }
-                }
-            }
-        }
-
-        stage('Create Ingress') {
-            steps {
-                script {
-                    echo 'Creating Ingress for the application...'
-                    def ingressFile = './application/k8s/ingress.yml'
-                    if (fileExists(ingressFile) && sh(script: "test -s ${ingressFile} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
-                        applyK8sConfig(ingressFile)
-                    } else {
-                        echo "File ${ingressFile} does not exist or is empty."
-                    }
-                }
-            }
-        }
-
-        stage('Monitor HPA') {
-            steps {
-                script {
-                    echo 'Monitoring HPA status...'
-                    def monitorScript = "${HPA_SCRIPT_PATH}/monitor-hpa.sh"
-                    if (fileExists(monitorScript)) {
-                        echo "Ensuring ${monitorScript} is executable..."
-                        sh "chmod +x ${monitorScript}"
-                        sh monitorScript
-                    } else {
-                        echo "Monitoring script ${monitorScript} does not exist."
-                    }
-                }
-            }
-        }
-        stage('Run HPA Benchmark') {
-            steps {
-                script {
-                    echo 'Running HPA benchmark...'
-                    def benchmarkScript = "${HPA_SCRIPT_PATH}/benchmark-hpa.sh"
-                    if (fileExists(benchmarkScript)) {
-                        echo "Ensuring ${benchmarkScript} is executable..."
-                        sh "chmod +x ${benchmarkScript}"
-                        sh benchmarkScript
-                    } else {
-                        echo "Benchmark script ${benchmarkScript} does not exist."
-                    }
-                }
-            }
-        }
+        // 1️⃣2️⃣ Validate Application Access
         stage('Monitor Application Access') {
             steps {
-                script {
-                    echo 'Verifying application accessibility...'
-                    sh """
-                        curl -k https://$DOMAIN_NAME
-                    """
-                }
+                sh '''
+                    curl -k https://${DOMAIN_NAME}
+                '''
             }
         }
+
     }
 
     post {
@@ -253,14 +408,5 @@ pipeline {
         failure {
             echo 'Pipeline execution failed.'
         }
-    }
-}
-
-// Helper function to apply Kubernetes configurations
-def applyK8sConfig(filePath) {
-    if (fileExists(filePath) && sh(script: "test -s ${filePath} && echo 1 || echo 0", returnStdout: true).trim() == "1") {
-        sh "kubectl apply -f ${filePath}"
-    } else {
-        echo "File ${filePath} does not exist or is empty."
     }
 }
