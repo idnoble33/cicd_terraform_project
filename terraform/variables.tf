@@ -22,6 +22,12 @@ variable "vm_size" {
 variable "service_cidr" {
   description = "Service CIDR for AKS"
   default     = "10.0.0.0/16"
+  # type = "string"
+
+  validation {
+    condition     = can(cidrnetmask(var.service_cidr))
+    error_message = "The variable service_cidr must contain a valid CIDR block"
+  }
 }
 
 variable "dns_service_ip" {
@@ -100,10 +106,10 @@ variable "network_interface_id" {
 variable "os_disk_size" {
   description = "The size of the OS disk in GB"
   type        = number
-  default     = 40  # Default disk size
+  default     = 40 # Default disk size
 }
 variable "subnet_id" {
   description = "The ID of the subnet the NIC will be attached to"
   type        = string
-  default = "10.0.1.0/24"
+  default     = "10.0.1.0/24"
 }

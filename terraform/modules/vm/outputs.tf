@@ -10,6 +10,6 @@ output "vm_name" {
 
 output "vm_public_ip" {
   description = "The public IP address of the created VM."
-  value       = var.network_public_ip  # Assuming you pass this from the main module
+  value       = var.network_public_ip # Assuming you pass this from the main module
 }
 

@@ -35,6 +35,44 @@ pipeline {
             }
         }
 
+        stage('Verify Docker Installation') {
+            steps {
+                script {
+                    echo 'Verifying Docker installation...'
+                    def dockerInstalled = sh(script: "docker --version || echo 'not installed'", returnStdout: true).trim()
+                    if (dockerInstalled.contains("not installed")) {
+                        echo 'Docker not found, installing Docker...'
+                        sh """
+                            sudo apt-get update
+                            sudo apt-get install -y docker.io
+                            sudo systemctl start docker
+                            sudo systemctl enable docker
+                        """
+                        echo 'Docker installed successfully.'
+                    } else {
+                        echo "Docker is already installed: ${dockerInstalled}"
+                    }
+                }
+            }
+        }
+
+        stage('Test Docker') {
+            steps {
+                script {
+                    echo 'Testing Docker with hello-world container...'
+                    sh "docker run hello-world"
+                }
+            }
+        }
+        stage('Setup Azure CLI') {
+            steps {
+                sh '''
+                sudo apt-get update
+                sudo apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg
+                curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+                '''
+            }
+        }
         stage('Azure Login') {
             steps {
                 script {
@@ -181,7 +219,21 @@ pipeline {
                 }
             }
         }
-
+        stage('Run HPA Benchmark') {
+            steps {
+                script {
+                    echo 'Running HPA benchmark...'
+                    def benchmarkScript = "${HPA_SCRIPT_PATH}/benchmark-hpa.sh"
+                    if (fileExists(benchmarkScript)) {
+                        echo "Ensuring ${benchmarkScript} is executable..."
+                        sh "chmod +x ${benchmarkScript}"
+                        sh benchmarkScript
+                    } else {
+                        echo "Benchmark script ${benchmarkScript} does not exist."
+                    }
+                }
+            }
+        }
         stage('Monitor Application Access') {
             steps {
                 script {

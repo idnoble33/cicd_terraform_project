@@ -8,12 +8,12 @@ resource "random_string" "suffix" {
 
 # Public IP
 resource "azurerm_public_ip" "public_ip" {
-  name                = var.public_ip_name
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  allocation_method   = "Static"  # Change to Static
-  sku                 = var.public_ip_sku
-  idle_timeout_in_minutes  = 4
+  name                    = var.public_ip_name
+  location                = var.location
+  resource_group_name     = var.resource_group_name
+  allocation_method       = "Static" # Change to Static
+  sku                     = var.public_ip_sku
+  idle_timeout_in_minutes = 4
 
   #   lifecycle {
   #   prevent_destroy = true
@@ -84,5 +84,5 @@ resource "azurerm_network_interface" "nic" {
 # Subnet NSG Association (Optional)
 resource "azurerm_network_interface_security_group_association" "nic_nsg_association" {
   network_interface_id      = azurerm_network_interface.nic.id
-  network_security_group_id  = azurerm_network_security_group.nsg.id
+  network_security_group_id = azurerm_network_security_group.nsg.id
 }

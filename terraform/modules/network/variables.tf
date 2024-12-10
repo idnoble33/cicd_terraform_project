@@ -61,7 +61,7 @@ variable "resource_group_name" {
 variable "create_rg" {
   description = "Determines whether to create the resource group"
   type        = bool
-  default     = false  
+  default     = false
 }
 
 output "public_ip" {

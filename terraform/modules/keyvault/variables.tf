@@ -1,7 +1,7 @@
 
 variable "keyvault_name" {
   description = "Name of the Key Vault"
-    type        = string
+  type        = string
 
 }
 

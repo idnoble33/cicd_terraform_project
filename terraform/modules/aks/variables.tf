@@ -16,7 +16,7 @@ variable "node_count" {
 variable "vm_size" {
   description = "VM size for the default node pool"
   type        = string
-  default = "Standard_NC40ads_H100_v5"
+  default     = "Standard_NC40ads_H100_v5"
 }
 
 variable "location" {

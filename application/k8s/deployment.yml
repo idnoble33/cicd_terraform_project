@@ -19,7 +19,8 @@ spec:
       - name: hello-world-container
         image: myacrname123.azurecr.io/hello-world:latest # Replace with your actual image
         ports:
-        - containerPort: 80
+        # - containerPort: 80
+        - containerPort: 5000
         resources:
           requests:
             memory: "64Mi"

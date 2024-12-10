@@ -5,7 +5,7 @@ output "resource_group_name" {
 
 output "nic_id" {
   description = "The ID of the network interface."
-  value       = azurerm_network_interface.nic.id  # Ensure this matches your network interface resource
+  value       = azurerm_network_interface.nic.id # Ensure this matches your network interface resource
 }
 
 output "public_ip_address" {
@@ -13,7 +13,7 @@ output "public_ip_address" {
   value       = azurerm_public_ip.public_ip.ip_address
 }
 
- output "network_interface_id" {
+output "network_interface_id" {
   value = azurerm_network_interface.nic.id
 }
 

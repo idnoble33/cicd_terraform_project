@@ -8,9 +8,9 @@ resource "random_string" "suffix" {
 
 
 resource "azurerm_key_vault" "keyvault" {
-  name                        = "kv-${random_string.suffix.result}"
-  resource_group_name         = var.resource_group_name
-  location                    = var.location
-  tenant_id                   = var.tenant_id
-  sku_name                    = "standard"
+  name                = "kv-${random_string.suffix.result}"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  tenant_id           = var.tenant_id
+  sku_name            = "standard"
 }

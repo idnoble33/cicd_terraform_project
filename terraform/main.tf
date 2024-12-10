@@ -6,8 +6,8 @@ provider "azurerm" {
     # }
 
   }
-  subscription_id = "54557d68-29ef-4ac0-a0fe-a4d67bdde305"
-  use_cli = true
+  subscription_id                 = "54557d68-29ef-4ac0-a0fe-a4d67bdde305"
+  use_cli                         = true
   resource_provider_registrations = "none"
 }
 
@@ -49,22 +49,22 @@ module "network" {
 }
 # VM Module
 module "vm" {
-  source              = "./modules/vm"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = var.location
-  vm_size             = var.vm_size
-  ssh_public_key_path = var.ssh_public_key_path
+  source               = "./modules/vm"
+  resource_group_name  = azurerm_resource_group.rg.name
+  location             = var.location
+  vm_size              = var.vm_size
+  ssh_public_key_path  = var.ssh_public_key_path
   ssh_private_key_path = var.ssh_private_key_path
-  network_interface_id = module.network.nic_id  # Ensure this output exists
-  network_public_ip   = module.network.public_ip_address  # Pass the public IP here
+  network_interface_id = module.network.nic_id            # Ensure this output exists
+  network_public_ip    = module.network.public_ip_address # Pass the public IP here
   os_disk_size         = var.os_disk_size
-  subnet_id           = module.network.subnet_id
-  
+  subnet_id            = module.network.subnet_id
+
 }
 
 module "acr" {
-  source              = "./modules/acr"
-  acr_name            = "acr-${random_string.suffix.result}"
+  source   = "./modules/acr"
+  acr_name = "acr-${random_string.suffix.result}"
   # admin_enabled       = false
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
@@ -89,7 +89,9 @@ module "aks" {
 }
 
 resource "null_resource" "update_inventory_and_run_playbook" {
-  depends_on = [module.network]  # ensure network resources are created first
+  # depends_on = [module.network] # ensure network resources are created first
+    depends_on = [module.network, module.vm]
+
 
   # First provisioner: Update the Ansible inventory file with the new Jenkins server IP and credentials
   provisioner "local-exec" {
