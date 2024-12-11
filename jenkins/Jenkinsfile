@@ -11,7 +11,7 @@ pipeline {
         IMAGE_TAG             = "latest"
         HPA_SCRIPT_PATH       = "terraform/scripts"
         RESOURCE_GROUP        = "Idowu-Candidate"
-        AKS_CLUSTER_NAME      = "aks-6pcoskve"
+        AKS_CLUSTER_NAME      = "aks-yjxqp248"
         DOMAIN_NAME           = "joidag.com"
     }
 
@@ -113,6 +113,17 @@ pipeline {
                 }
             }
         }
+        stage('Debug Kubernetes Context') {
+            steps {
+                script {
+                    sh """
+                        kubectl config view
+                        kubectl get nodes
+                    """
+                }
+            }
+        }
+
 
         stage('Create ACR Secret') {
             steps {
@@ -135,6 +146,7 @@ pipeline {
                     echo "Getting AKS credentials..."
                     sh """
                         az aks get-credentials --resource-group ${RESOURCE_GROUP} --name ${AKS_CLUSTER_NAME} --overwrite-existing
+                        kubectl config current-context
                     """
                 }
             }
