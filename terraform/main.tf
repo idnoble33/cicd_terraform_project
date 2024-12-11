@@ -6,7 +6,6 @@ provider "azurerm" {
     # }
 
   }
-  subscription_id                 = "54557d68-29ef-4ac0-a0fe-a4d67bdde305"
   use_cli                         = true
   resource_provider_registrations = "none"
 }
