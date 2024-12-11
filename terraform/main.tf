@@ -89,8 +89,7 @@ module "aks" {
 }
 
 resource "null_resource" "update_inventory_and_run_playbook" {
-  # depends_on = [module.network] # ensure network resources are created first
-    depends_on = [module.network, module.vm]
+    depends_on = [module.network, module.vm] # ensure network and virtual machine resources are created first
 
 
   # First provisioner: Update the Ansible inventory file with the new Jenkins server IP and credentials
