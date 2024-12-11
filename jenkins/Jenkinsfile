@@ -113,16 +113,16 @@ pipeline {
                 }
             }
         }
-        stage('Debug Kubernetes Context') {
-            steps {
-                script {
-                    sh """
-                        kubectl config view
-                        kubectl get nodes
-                    """
-                }
-            }
-        }
+        // stage('Debug Kubernetes Context') {
+        //     steps {
+        //         script {
+        //             sh """
+        //                 kubectl config view
+        //                 kubectl get nodes
+        //             """
+        //         }
+        //     }
+        // }
 
 
         stage('Create ACR Secret') {
